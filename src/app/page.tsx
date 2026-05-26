@@ -33,6 +33,7 @@ import { getResumeTemplate } from "@/lib/resume-templates";
 // Este import traz os tipos de dados usados pela página e pela resposta da API.
 import type {
   AiResumeJson,
+  LoadingProgressStatus,
   ResumeApiErrorResponse,
   ResumeApiSuccessResponse,
   ResumeData,
@@ -46,6 +47,15 @@ type PageStep =
 
   // Esta etapa é a página de pré-visualização do currículo.
   | "preview";
+
+// Esta constante define a porcentagem inicial da barra assim que o usuário clica no botão.
+const initialLoadingProgress = 5;
+
+// Esta constante define o limite máximo enquanto a IA ainda não respondeu.
+const waitingLoadingLimit = 90;
+
+// Esta constante define o tempo para mostrar a barra em 100% antes de abrir a pré-visualização.
+const successPreviewDelay = 650;
 
 // Esta função converte o JSON em português vindo da IA para o formato usado pelos componentes.
 function mapAiResumeToResumeData(curriculo: AiResumeJson): ResumeData {
@@ -97,6 +107,15 @@ function isApiErrorResponse(value: unknown): value is ResumeApiErrorResponse {
   );
 }
 
+// Esta função espera alguns milissegundos antes de continuar o fluxo.
+function wait(milliseconds: number) {
+  // Este retorno cria uma pausa controlada para o usuário ver a barra completar 100%.
+  return new Promise((resolve) => {
+    // Esta linha encerra a pausa depois do tempo definido.
+    window.setTimeout(resolve, milliseconds);
+  });
+}
+
 // Esta função envia o relato para a rota segura do Next.js, que roda no servidor.
 async function requestAiResume(story: string) {
   // Esta chamada usa caminho relativo para funcionar tanto localmente quanto na Vercel.
@@ -119,8 +138,10 @@ async function requestAiResume(story: string) {
     // Esta constante pega a mensagem da API quando ela existir.
     const apiMessage = isApiErrorResponse(data) ? data.erro : "";
 
-    // Este erro será tratado pelo fallback local, sem quebrar a experiência do jovem.
-    throw new Error(apiMessage || "Não foi possível gerar o currículo com IA.");
+    // Este erro será tratado pela tela, que para a barra e pede para tentar novamente.
+    throw new Error(
+      apiMessage || "Não foi possível gerar o currículo com IA. Tente novamente em instantes.",
+    );
   }
 
   // Esta constante trata o retorno como resposta de sucesso depois da validação HTTP.
@@ -153,6 +174,16 @@ export default function Home() {
   // Este estado informa se a IA está gerando o currículo agora.
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Este estado guarda a porcentagem exibida na barra de progresso.
+  const [loadingProgress, setLoadingProgress] = useState(0);
+
+  // Este estado informa se a barra está parada, carregando, concluída ou com erro.
+  const [loadingStatus, setLoadingStatus] =
+    useState<LoadingProgressStatus>("idle");
+
+  // Este estado guarda uma mensagem amigável quando a IA falha.
+  const [loadingErrorMessage, setLoadingErrorMessage] = useState("");
+
   // Esta constante busca nome e descrição do template selecionado.
   const selectedTemplate = getResumeTemplate(selectedTemplateId);
 
@@ -163,6 +194,15 @@ export default function Home() {
 
     // Esta linha limpa mensagens antigas quando o jovem volta a editar.
     setMessage("");
+
+    // Esta linha esconde a barra caso o jovem edite depois de uma falha.
+    setLoadingStatus("idle");
+
+    // Esta linha zera a porcentagem para a próxima tentativa começar em 5%.
+    setLoadingProgress(0);
+
+    // Esta linha remove o erro antigo depois que o jovem volta a mexer no relato.
+    setLoadingErrorMessage("");
   }
 
   // Esta função roda quando o usuário clica em "Gerar currículo".
@@ -171,6 +211,9 @@ export default function Home() {
     if (story.trim().length < 20) {
       // Esta linha mostra uma orientação amigável para o usuário.
       setMessage("Escreva um pouco mais sobre você antes de gerar o currículo.");
+
+      // Esta linha garante que a barra não apareça quando o relato ainda está curto.
+      setLoadingStatus("idle");
 
       // Este retorno encerra a função porque falta informação.
       return;
@@ -182,42 +225,85 @@ export default function Home() {
       return;
     }
 
-    // Esta linha mostra que o sistema está falando com a rota segura da IA.
-    setMessage("Gerando currículo profissional com IA...");
+    // Esta linha limpa mensagens simples porque a barra vai mostrar o carregamento visual.
+    setMessage("");
+
+    // Esta linha remove erro antigo antes de começar uma nova tentativa.
+    setLoadingErrorMessage("");
 
     // Esta linha bloqueia novo envio enquanto a IA processa o relato.
     setIsGenerating(true);
 
-    // Este bloco tenta usar a IA e, se algo falhar, usa a geração local básica.
+    // Esta linha mostra a barra imediatamente começando em 5%, como pedido.
+    setLoadingProgress(initialLoadingProgress);
+
+    // Esta linha coloca a barra no estado de carregamento.
+    setLoadingStatus("loading");
+
+    // Esta constante cria um temporizador que simula avanço enquanto a IA trabalha.
+    const progressTimer = window.setInterval(() => {
+      // Esta atualização usa o valor anterior para preencher gradualmente até 90%.
+      setLoadingProgress((currentProgress) => {
+        // Esta condição trava a barra em 90% enquanto a resposta da IA não chega.
+        if (currentProgress >= waitingLoadingLimit) {
+          // Este retorno mantém a espera sem prometer conclusão antes da IA responder.
+          return waitingLoadingLimit;
+        }
+
+        // Esta constante acelera no começo e desacelera perto do limite de espera.
+        const nextStep =
+          currentProgress < 35 ? 6 : currentProgress < 65 ? 4 : 2;
+
+        // Este retorno avança a barra sem passar de 90% antes da resposta.
+        return Math.min(waitingLoadingLimit, currentProgress + nextStep);
+      });
+    }, 520);
+
+    // Este bloco tenta usar a IA e só avança para a pré-visualização quando houver sucesso.
     try {
       // Esta linha chama a API interna, que usa OPENAI_API_KEY apenas no servidor.
       const aiResume = await requestAiResume(story.trim());
 
+      // Esta linha para a simulação porque a IA já respondeu.
+      window.clearInterval(progressTimer);
+
       // Esta linha salva o currículo profissional devolvido pela IA.
       setResume(aiResume);
 
+      // Esta linha coloca a barra no estado de sucesso para mudar mensagem e ícone.
+      setLoadingStatus("success");
+
+      // Esta linha completa a barra em 100% somente depois da resposta da IA.
+      setLoadingProgress(100);
+
+      // Esta linha mantém o 100% visível por um instante antes da transição de página.
+      await wait(successPreviewDelay);
+
       // Esta linha confirma que a pré-visualização foi criada com IA.
       setMessage("Currículo gerado com IA. Revise o modelo antes de baixar.");
+
+      // Esta linha libera o botão depois da geração bem-sucedida.
+      setIsGenerating(false);
+
+      // Esta linha abre a segunda etapa somente depois da barra chegar a 100%.
+      setStep("preview");
     } catch (error) {
+      // Esta linha para a simulação porque houve falha na IA.
+      window.clearInterval(progressTimer);
+
       // Esta linha registra o erro no console para investigação, sem mostrar detalhes técnicos ao usuário.
       console.error("Falha ao gerar currículo com IA:", error);
 
-      // Esta constante cria uma versão básica para o jovem não ficar sem retorno.
-      const fallbackResume = createResumeFromStory(story.trim());
-
-      // Esta linha salva a versão básica no mesmo formato dos templates.
-      setResume(fallbackResume);
-
-      // Esta mensagem explica o problema de forma simples e mantém a experiência funcionando.
-      setMessage(
-        "Não foi possível usar a IA agora. Geramos uma versão básica para você revisar.",
-      );
-    } finally {
-      // Esta linha libera o botão depois da tentativa de geração.
+      // Esta linha libera o botão para o jovem tentar gerar novamente.
       setIsGenerating(false);
 
-      // Esta linha abre a segunda etapa com o currículo gerado pela IA ou pelo fallback local.
-      setStep("preview");
+      // Esta linha muda a barra para erro e impede avanço para a pré-visualização.
+      setLoadingStatus("error");
+
+      // Esta linha mostra uma mensagem curta, amigável e sem detalhe técnico.
+      setLoadingErrorMessage(
+        "Não foi possível gerar com IA agora. Tente novamente em instantes.",
+      );
     }
   }
 
@@ -228,6 +314,15 @@ export default function Home() {
 
     // Esta linha orienta o usuário sobre a edição.
     setMessage("Edite seu relato e gere novamente quando quiser.");
+
+    // Esta linha esconde a barra quando o usuário volta da pré-visualização.
+    setLoadingStatus("idle");
+
+    // Esta linha zera a barra para uma próxima geração.
+    setLoadingProgress(0);
+
+    // Esta linha limpa qualquer erro antigo ao voltar para edição.
+    setLoadingErrorMessage("");
   }
 
   // Este retorno monta o fundo moderno e controla qual etapa aparece.
@@ -258,6 +353,9 @@ export default function Home() {
                   onStoryChange={handleStoryChange}
                   onGenerate={handleGenerate}
                   isGenerating={isGenerating}
+                  loadingProgress={loadingProgress}
+                  loadingStatus={loadingStatus}
+                  loadingErrorMessage={loadingErrorMessage}
                   message={message}
                 />
 

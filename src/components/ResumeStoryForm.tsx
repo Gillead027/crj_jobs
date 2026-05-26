@@ -6,6 +6,9 @@ import { motion } from "framer-motion";
 // Este import traz ícones usados no botão e no cabeçalho do formulário.
 import { ArrowRight, PenLine } from "lucide-react";
 
+// Este import traz a barra animada que aparece enquanto a IA gera o currículo.
+import { LoadingProgress } from "@/components/LoadingProgress";
+
 // Este import traz tipos do React para eventos de formulário e campo de texto.
 import type { ChangeEvent, FormEvent } from "react";
 
@@ -25,6 +28,15 @@ export function ResumeStoryForm({
 
   // Esta propriedade informa se a rota da IA ainda está processando o relato.
   isGenerating,
+
+  // Esta propriedade informa a porcentagem atual da barra de carregamento.
+  loadingProgress,
+
+  // Esta propriedade informa se a barra está carregando, concluída ou com erro.
+  loadingStatus,
+
+  // Esta propriedade mostra o erro amigável quando a IA não consegue gerar.
+  loadingErrorMessage,
 
   // Esta propriedade mostra mensagens de orientação para o usuário.
   message,
@@ -94,11 +106,21 @@ export function ResumeStoryForm({
         />
       </div>
 
-      {/* Esta área mostra mensagens sem tirar o foco do formulário. */}
-      <p className="mt-3 min-h-6 text-sm font-medium text-slate-700" aria-live="polite">
-        {/* Este texto muda quando o usuário tenta gerar o currículo. */}
-        {message}
-      </p>
+      {/* Esta condição troca a mensagem simples pela barra profissional durante a geração. */}
+      {loadingStatus !== "idle" ? (
+        // Esta barra mostra progresso simulado, mensagens curtas e erro amigável se a IA falhar.
+        <LoadingProgress
+          progress={loadingProgress}
+          status={loadingStatus}
+          errorMessage={loadingErrorMessage}
+        />
+      ) : (
+        // Esta área mostra mensagens comuns quando a barra não precisa aparecer.
+        <p className="mt-3 min-h-6 text-sm font-medium text-slate-700" aria-live="polite">
+          {/* Este texto muda quando o usuário tenta gerar o currículo. */}
+          {message}
+        </p>
+      )}
 
       {/* Este bloco organiza o botão principal no fim do formulário. */}
       <div className="mt-5 flex justify-end">

@@ -367,7 +367,10 @@ export async function POST(request: Request) {
     // Esta linha registra o erro no servidor para ajudar na investigação técnica.
     console.error("Erro ao gerar currículo com IA:", error);
 
-    // Esta resposta evita expor detalhes internos para o navegador.
-    return createErrorResponse(500, "Não foi possível gerar o currículo com IA.");
+    // Esta resposta evita expor detalhes internos e orienta o usuário a tentar novamente.
+    return createErrorResponse(
+      500,
+      "Não foi possível gerar o currículo com IA. Tente novamente em instantes.",
+    );
   }
 }

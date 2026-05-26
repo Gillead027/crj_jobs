@@ -62,6 +62,32 @@ export type ResumeTemplateOption = {
   accentClassName: string;
 };
 
+// Este tipo define os estados visuais da barra de carregamento.
+export type LoadingProgressStatus =
+  // Este estado significa que a barra ainda não deve aparecer.
+  | "idle"
+
+  // Este estado significa que a IA está processando o relato.
+  | "loading"
+
+  // Este estado significa que a IA respondeu e a barra deve completar 100%.
+  | "success"
+
+  // Este estado significa que a IA falhou e a barra deve parar com mensagem amigável.
+  | "error";
+
+// Este tipo organiza as propriedades do componente de barra de progresso.
+export type LoadingProgressProps = {
+  // Este campo guarda o número atual da barra, de 0 a 100.
+  progress: number;
+
+  // Este campo informa se a barra está carregando, completa ou com erro.
+  status: LoadingProgressStatus;
+
+  // Este campo guarda a mensagem amigável exibida quando a IA falha.
+  errorMessage: string;
+};
+
 // Este tipo organiza as propriedades que o formulário de relato precisa receber.
 export type ResumeStoryFormProps = {
   // Este campo guarda o texto que aparece dentro da área de relato.
@@ -76,6 +102,15 @@ export type ResumeStoryFormProps = {
 
   // Este campo informa se a IA está trabalhando, para bloquear duplo clique e mostrar carregamento.
   isGenerating: boolean;
+
+  // Este campo informa a porcentagem visual da barra de progresso.
+  loadingProgress: number;
+
+  // Este campo informa o estado atual da barra de carregamento.
+  loadingStatus: LoadingProgressStatus;
+
+  // Este campo guarda uma mensagem amigável quando a IA falha.
+  loadingErrorMessage: string;
 
   // Este campo guarda mensagens de orientação, erro ou sucesso.
   message: string;
