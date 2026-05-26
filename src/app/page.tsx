@@ -6,8 +6,8 @@ import { AnimatePresence, motion } from "framer-motion";
 // Este import traz o ícone usado no botão de voltar.
 import { ArrowLeft } from "lucide-react";
 
-// Este import permite guardar estados e recalcular o currículo quando o relato muda.
-import { useMemo, useState } from "react";
+// Este import permite guardar estados da tela, do currículo e do carregamento da IA.
+import { useState } from "react";
 
 // Este import traz o botão separado que baixa o currículo em PDF.
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
@@ -30,8 +30,14 @@ import { createResumeFromStory, exampleStory } from "@/lib/resume-generator";
 // Este import traz informações do template escolhido para mostrar na etapa de preview.
 import { getResumeTemplate } from "@/lib/resume-templates";
 
-// Este import traz os tipos de etapa e template usados pela página.
-import type { ResumeTemplateId } from "@/types/resume";
+// Este import traz os tipos de dados usados pela página e pela resposta da API.
+import type {
+  AiResumeJson,
+  ResumeApiErrorResponse,
+  ResumeApiSuccessResponse,
+  ResumeData,
+  ResumeTemplateId,
+} from "@/types/resume";
 
 // Este tipo define as duas etapas visuais da experiência.
 type PageStep =
@@ -41,10 +47,98 @@ type PageStep =
   // Esta etapa é a página de pré-visualização do currículo.
   | "preview";
 
+// Esta função converte o JSON em português vindo da IA para o formato usado pelos componentes.
+function mapAiResumeToResumeData(curriculo: AiResumeJson): ResumeData {
+  // Este retorno mantém os mesmos dados, apenas mudando os nomes dos campos para o padrão da tela.
+  return {
+    // Este campo coloca o nome da IA no campo usado pelos templates.
+    name: curriculo.nome,
+
+    // Este campo coloca a idade da IA no campo usado pelos templates.
+    age: curriculo.idade,
+
+    // Este campo coloca o telefone da IA no campo usado pelos templates.
+    phone: curriculo.telefone,
+
+    // Este campo coloca o e-mail da IA no campo usado pelos templates.
+    email: curriculo.email,
+
+    // Este campo coloca a cidade da IA no campo usado pelos templates.
+    city: curriculo.cidade,
+
+    // Este campo coloca o objetivo profissional curto no cabeçalho do currículo.
+    professionalObjective: curriculo.objetivoProfissional,
+
+    // Este campo coloca a formação escolar no currículo.
+    education: curriculo.formacao,
+
+    // Esta lista coloca experiências formais ou informais no currículo.
+    experiences: curriculo.experiencias,
+
+    // Esta lista coloca habilidades no currículo.
+    skills: curriculo.habilidades,
+
+    // Esta lista coloca cursos no currículo.
+    courses: curriculo.cursos,
+
+    // Esta lista coloca informações adicionais no currículo.
+    additionalInfo: curriculo.informacoesAdicionais,
+  };
+}
+
+// Esta função verifica se uma resposta desconhecida parece ser erro da API.
+function isApiErrorResponse(value: unknown): value is ResumeApiErrorResponse {
+  // Esta linha confirma que existe um objeto com uma mensagem de erro em texto.
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    "erro" in value &&
+    typeof (value as ResumeApiErrorResponse).erro === "string"
+  );
+}
+
+// Esta função envia o relato para a rota segura do Next.js, que roda no servidor.
+async function requestAiResume(story: string) {
+  // Esta chamada usa caminho relativo para funcionar tanto localmente quanto na Vercel.
+  const response = await fetch("/api/gerar-curriculo", {
+    // Este método envia o relato para a API em vez de colocar dados na URL.
+    method: "POST",
+
+    // Este cabeçalho informa que o corpo da requisição é JSON.
+    headers: { "Content-Type": "application/json" },
+
+    // Este corpo envia apenas o relato; a chave da OpenAI fica protegida no servidor.
+    body: JSON.stringify({ relato: story }),
+  });
+
+  // Esta linha lê o JSON de sucesso ou erro devolvido pela rota.
+  const data: unknown = await response.json();
+
+  // Esta condição transforma erro da API em mensagem amigável para a tela.
+  if (!response.ok) {
+    // Esta constante pega a mensagem da API quando ela existir.
+    const apiMessage = isApiErrorResponse(data) ? data.erro : "";
+
+    // Este erro será tratado pelo fallback local, sem quebrar a experiência do jovem.
+    throw new Error(apiMessage || "Não foi possível gerar o currículo com IA.");
+  }
+
+  // Esta constante trata o retorno como resposta de sucesso depois da validação HTTP.
+  const successData = data as ResumeApiSuccessResponse;
+
+  // Esta linha converte o JSON da IA para o formato visual da aplicação.
+  return mapAiResumeToResumeData(successData.curriculo);
+}
+
 // Este componente renderiza a página principal do sistema.
 export default function Home() {
   // Este estado guarda o relato digitado pelo jovem.
   const [story, setStory] = useState(exampleStory);
+
+  // Este estado guarda o currículo que será mostrado na pré-visualização e no PDF.
+  const [resume, setResume] = useState<ResumeData>(() =>
+    createResumeFromStory(exampleStory),
+  );
 
   // Este estado guarda se o usuário está na página inicial ou na pré-visualização.
   const [step, setStep] = useState<PageStep>("story");
@@ -56,8 +150,8 @@ export default function Home() {
   // Este estado mostra uma mensagem simples de erro, orientação ou sucesso.
   const [message, setMessage] = useState("");
 
-  // Esta constante calcula o currículo sempre que o relato muda.
-  const resume = useMemo(() => createResumeFromStory(story), [story]);
+  // Este estado informa se a IA está gerando o currículo agora.
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Esta constante busca nome e descrição do template selecionado.
   const selectedTemplate = getResumeTemplate(selectedTemplateId);
@@ -72,7 +166,7 @@ export default function Home() {
   }
 
   // Esta função roda quando o usuário clica em "Gerar currículo".
-  function handleGenerate() {
+  async function handleGenerate() {
     // Esta condição impede gerar currículo com texto muito curto.
     if (story.trim().length < 20) {
       // Esta linha mostra uma orientação amigável para o usuário.
@@ -82,11 +176,49 @@ export default function Home() {
       return;
     }
 
-    // Esta linha confirma que a pré-visualização foi criada.
-    setMessage("Currículo gerado. Revise o modelo antes de baixar.");
+    // Esta condição evita enviar duas requisições para a IA se o usuário clicar várias vezes.
+    if (isGenerating) {
+      // Este retorno mantém a chamada atual em andamento.
+      return;
+    }
 
-    // Esta linha abre a segunda etapa com o currículo visual.
-    setStep("preview");
+    // Esta linha mostra que o sistema está falando com a rota segura da IA.
+    setMessage("Gerando currículo profissional com IA...");
+
+    // Esta linha bloqueia novo envio enquanto a IA processa o relato.
+    setIsGenerating(true);
+
+    // Este bloco tenta usar a IA e, se algo falhar, usa a geração local básica.
+    try {
+      // Esta linha chama a API interna, que usa OPENAI_API_KEY apenas no servidor.
+      const aiResume = await requestAiResume(story.trim());
+
+      // Esta linha salva o currículo profissional devolvido pela IA.
+      setResume(aiResume);
+
+      // Esta linha confirma que a pré-visualização foi criada com IA.
+      setMessage("Currículo gerado com IA. Revise o modelo antes de baixar.");
+    } catch (error) {
+      // Esta linha registra o erro no console para investigação, sem mostrar detalhes técnicos ao usuário.
+      console.error("Falha ao gerar currículo com IA:", error);
+
+      // Esta constante cria uma versão básica para o jovem não ficar sem retorno.
+      const fallbackResume = createResumeFromStory(story.trim());
+
+      // Esta linha salva a versão básica no mesmo formato dos templates.
+      setResume(fallbackResume);
+
+      // Esta mensagem explica o problema de forma simples e mantém a experiência funcionando.
+      setMessage(
+        "Não foi possível usar a IA agora. Geramos uma versão básica para você revisar.",
+      );
+    } finally {
+      // Esta linha libera o botão depois da tentativa de geração.
+      setIsGenerating(false);
+
+      // Esta linha abre a segunda etapa com o currículo gerado pela IA ou pelo fallback local.
+      setStep("preview");
+    }
   }
 
   // Esta função leva o usuário de volta para editar o relato.
@@ -125,6 +257,7 @@ export default function Home() {
                   story={story}
                   onStoryChange={handleStoryChange}
                   onGenerate={handleGenerate}
+                  isGenerating={isGenerating}
                   message={message}
                 />
 

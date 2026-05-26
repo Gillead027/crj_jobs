@@ -10,9 +10,11 @@ import type {
 } from "@/types/resume";
 
 // Esta linha força a rota a rodar no Node.js, onde a chave da OpenAI fica segura no servidor.
+// Isso é importante porque a chave OPENAI_API_KEY nunca deve ir para o navegador do usuário.
 export const runtime = "nodejs";
 
 // Esta constante define o modelo usado pela rota quando OPENAI_MODEL não estiver configurado.
+// O modelo fica separado da chave para permitir troca segura nas variáveis da Vercel.
 const defaultModel = "gpt-4o-mini";
 
 // Esta constante define o tamanho máximo aceito para o relato, evitando requisições grandes demais.
@@ -268,9 +270,11 @@ function cleanAiResume(curriculo: AiResumeJson): AiResumeJson {
 // Esta função chama a OpenAI e pede o currículo estruturado.
 async function generateResumeWithAi(story: string) {
   // Esta linha cria o cliente da OpenAI usando a variável OPENAI_API_KEY do servidor.
+  // A chave não aparece escrita no código para evitar vazamento no GitHub, na Vercel e no navegador.
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   // Esta linha permite trocar o modelo por variável de ambiente sem alterar o código.
+  // Na Vercel, OPENAI_MODEL pode ser configurada junto com OPENAI_API_KEY no painel de Environment Variables.
   const model = process.env.OPENAI_MODEL ?? defaultModel;
 
   // Esta chamada envia o relato para a IA e exige uma resposta no schema definido.
@@ -322,9 +326,10 @@ async function generateResumeWithAi(story: string) {
 // Esta função responde requisições POST para criar o currículo estruturado.
 export async function POST(request: Request) {
   // Esta condição evita chamada externa quando a chave da OpenAI não foi configurada.
+  // Ela também gera uma mensagem amigável para o sistema em vez de quebrar a aplicação publicamente.
   if (!process.env.OPENAI_API_KEY) {
-    // Esta resposta orienta a configurar a variável de ambiente no servidor.
-    return createErrorResponse(500, "Configure a variável OPENAI_API_KEY no servidor.");
+    // Esta resposta explica o problema sem mostrar chave, token ou detalhe sensível para o navegador.
+    return createErrorResponse(500, "O gerador de IA ainda não está configurado no servidor.");
   }
 
   // Este bloco tenta ler e validar o JSON enviado na requisição.

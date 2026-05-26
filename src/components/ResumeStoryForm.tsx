@@ -23,6 +23,9 @@ export function ResumeStoryForm({
   // Esta propriedade gera o currículo quando o formulário é enviado.
   onGenerate,
 
+  // Esta propriedade informa se a rota da IA ainda está processando o relato.
+  isGenerating,
+
   // Esta propriedade mostra mensagens de orientação para o usuário.
   message,
 }: ResumeStoryFormProps) {
@@ -31,8 +34,8 @@ export function ResumeStoryForm({
     // Esta linha impede que a página recarregue ao enviar o formulário.
     event.preventDefault();
 
-    // Esta linha chama a função que gera o currículo e muda para a próxima etapa.
-    onGenerate();
+    // Esta linha chama a função que gera o currículo com IA e muda para a próxima etapa.
+    void onGenerate();
   }
 
   // Esta função roda sempre que o jovem muda o texto do relato.
@@ -85,6 +88,7 @@ export function ResumeStoryForm({
           rows={10}
           value={story}
           onChange={handleStoryChange}
+          disabled={isGenerating}
           className="mt-2 min-h-72 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-base leading-7 text-slate-900 shadow-inner transition placeholder:text-slate-400 focus:border-teal-600 focus:bg-white focus:outline-none"
           placeholder="Exemplo: Meu nome é Ana, tenho 17 anos, moro em Recife, busco meu primeiro emprego, estudo o ensino médio, ajudo minha mãe no salão e fiz curso de informática..."
         />
@@ -101,10 +105,11 @@ export function ResumeStoryForm({
         {/* Este botão gera o currículo e abre a tela de pré-visualização. */}
         <button
           type="submit"
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-slate-300/70 transition hover:bg-teal-800 focus-visible:outline-teal-700 sm:w-auto"
+          disabled={isGenerating}
+          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-slate-300/70 transition hover:bg-teal-800 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:bg-slate-500 disabled:shadow-none sm:w-auto"
         >
-          {/* Este texto deixa a ação principal clara. */}
-          Gerar currículo
+          {/* Este texto muda durante a chamada da IA para o usuário saber que deve aguardar. */}
+          {isGenerating ? "Gerando currículo..." : "Gerar currículo"}
 
           {/* Este ícone indica avanço para a próxima etapa. */}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />

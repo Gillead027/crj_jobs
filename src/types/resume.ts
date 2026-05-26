@@ -71,7 +71,11 @@ export type ResumeStoryFormProps = {
   onStoryChange: (nextStory: string) => void;
 
   // Esta função avisa a página quando o jovem clica para gerar o currículo.
-  onGenerate: () => void;
+  // Ela pode ser assíncrona porque agora a página chama a rota da IA antes de mostrar a prévia.
+  onGenerate: () => void | Promise<void>;
+
+  // Este campo informa se a IA está trabalhando, para bloquear duplo clique e mostrar carregamento.
+  isGenerating: boolean;
 
   // Este campo guarda mensagens de orientação, erro ou sucesso.
   message: string;

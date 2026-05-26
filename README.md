@@ -53,6 +53,29 @@ OPENAI_MODEL=gpt-4o-mini
 
 O arquivo `.env.example` mostra quais variaveis o projeto espera.
 
+## Como preparar o deploy na Vercel
+
+Na Vercel, configure as variaveis em `Project Settings` > `Environment Variables`.
+
+Use estas variaveis:
+
+```bash
+OPENAI_API_KEY=sua_chave_da_openai
+OPENAI_MODEL=gpt-4o-mini
+```
+
+O arquivo `.env.local` deve existir apenas no computador local. Ele esta no `.gitignore`, entao nao deve ser enviado para o repositorio.
+
+A chave da OpenAI nao fica escrita no codigo. A rota de API le `process.env.OPENAI_API_KEY` no servidor, o que evita expor a chave no navegador.
+
+Antes de publicar, rode:
+
+```bash
+npm run build
+```
+
+Se esse comando passar, o projeto esta pronto para o build de producao da Vercel.
+
 ## Como usar
 
 1. Escreva um relato simples sobre o jovem.
