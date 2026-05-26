@@ -1,0 +1,34 @@
+/* Este arquivo guarda estilos que valem para a aplicacao inteira. */
+
+/* Esta linha carrega a camada base do Tailwind CSS, como reset de estilos do navegador. */
+@tailwind base;
+
+/* Esta linha carrega classes prontas para componentes do Tailwind CSS. */
+@tailwind components;
+
+/* Esta linha carrega as classes utilitarias, como cores, margens e tamanhos. */
+@tailwind utilities;
+
+/* Este bloco define um fundo suave e uma cor padrao para todos os textos. */
+body {
+  /* Esta cor cria contraste bom sem usar branco puro. */
+  background: #f8fafc;
+
+  /* Esta cor deixa o texto escuro e facil de ler. */
+  color: #172033;
+}
+
+/* Este bloco melhora a navegacao por teclado, deixando o foco bem visivel. */
+:focus-visible {
+  /* Esta linha cria uma borda clara quando um campo ou botao recebe foco. */
+  outline: 3px solid #2563eb;
+
+  /* Esta linha afasta a borda do elemento para ela nao cobrir o conteudo. */
+  outline-offset: 3px;
+}
+
+/* Este bloco ajuda o navegador a calcular tamanhos de elementos de forma previsivel. */
+* {
+  /* Esta regra inclui borda e preenchimento dentro do tamanho total do elemento. */
+  box-sizing: border-box;
+}

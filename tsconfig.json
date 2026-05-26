@@ -1,0 +1,61 @@
+{
+  // Este arquivo configura o TypeScript, que ajuda a escrever codigo com mais seguranca.
+  "compilerOptions": {
+    // Esta opcao permite usar recursos modernos do JavaScript.
+    "target": "es5",
+    // Esta lista informa quais bibliotecas padrao o TypeScript deve conhecer.
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    // Esta opcao permite arquivos JavaScript, caso o projeto precise deles no futuro.
+    "allowJs": true,
+    // Esta opcao pula checagens internas de bibliotecas externas para deixar o processo mais rapido.
+    "skipLibCheck": true,
+    // Esta opcao deixa a checagem mais rigorosa para evitar erros comuns.
+    "strict": true,
+    // Esta opcao evita gerar arquivos JavaScript durante a checagem, porque o Next.js cuida disso.
+    "noEmit": true,
+    // Esta opcao melhora a compatibilidade entre pacotes que exportam codigo de formas diferentes.
+    "esModuleInterop": true,
+    // Esta opcao permite importar arquivos usando o padrao moderno de modulos.
+    "module": "esnext",
+    // Esta opcao ajuda o TypeScript a encontrar arquivos importados como o Next.js espera.
+    "moduleResolution": "bundler",
+    // Esta opcao permite importar arquivos JSON se um dia for necessario.
+    "resolveJsonModule": true,
+    // Esta opcao garante que cada arquivo possa ser analisado separadamente.
+    "isolatedModules": true,
+    // Esta opcao preserva JSX para o Next.js transformar em HTML.
+    "jsx": "react-jsx",
+    // Esta opcao acelera checagens depois da primeira execucao.
+    "incremental": true,
+    // Esta opcao carrega o plugin oficial do Next.js para melhorar a checagem.
+    "plugins": [
+      {
+        // Este nome ativa o plugin do Next.js dentro do TypeScript.
+        "name": "next"
+      }
+    ],
+    // Este apelido permite importar arquivos de src usando @/ no futuro.
+    "paths": {
+      // Este caminho aponta @/ para dentro da pasta src.
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  // Esta lista informa quais arquivos o TypeScript deve verificar.
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  // Esta lista evita verificar dependencias instaladas.
+  "exclude": [
+    "node_modules"
+  ]
+}
