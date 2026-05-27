@@ -18,11 +18,15 @@ O objetivo e simples: o jovem escreve um relato sobre si, e a tela transforma es
 - `eslint.config.mjs`: configura o ESLint, que ajuda a encontrar problemas no codigo.
 - `src/app/layout.tsx`: cria a estrutura geral da pagina, como idioma, titulo e fonte base.
 - `src/app/page.tsx`: contem o fluxo em duas etapas, da escrita do relato ate a pre-visualizacao.
+- `src/app/sobre/page.tsx`: cria a pagina institucional Sobre o Projeto.
 - `src/app/globals.css`: guarda estilos globais e importa as camadas do Tailwind CSS.
 - `src/app/api/gerar-curriculo/route.ts`: cria a rota de API que envia o relato para a IA e devolve JSON estruturado.
 - `src/lib/gemini-resume.ts`: concentra a integracao com Gemini, o prompt, o schema JSON e a limpeza da resposta.
+- `src/lib/resume-local-storage.ts`: guarda historico local e limite simples de geracoes no navegador.
 - `src/components/HeroSection.tsx`: contem a abertura moderna da pagina inicial.
 - `src/components/ResumeStoryForm.tsx`: contem o formulario onde o jovem escreve o relato.
+- `src/components/ResumeSmartQuestions.tsx`: contem o modo Primeiro emprego e as perguntas opcionais que complementam o relato.
+- `src/components/ResumeHistoryPanel.tsx`: mostra os ultimos curriculos salvos apenas no navegador.
 - `src/components/TemplateCarousel.tsx`: contem a galeria de templates do curriculo.
 - `src/components/ResumePreview.tsx`: escolhe qual template visual deve aparecer na pre-visualizacao.
 - `src/components/ResumeEditor.tsx`: contem os campos para editar o curriculo gerado antes do PDF.
@@ -43,6 +47,11 @@ npm run dev
 ```
 
 Depois abra `http://localhost:3000` no navegador.
+
+## Paginas
+
+- `/`: gerador principal de curriculo.
+- `/sobre`: pagina institucional sobre empregabilidade, juventude, autonomia e inclusao produtiva.
 
 ## Como configurar a IA Gemini
 
@@ -81,12 +90,34 @@ Se esse comando passar, o projeto esta pronto para o build de producao da Vercel
 ## Como usar
 
 1. Escreva um relato simples sobre o jovem.
-2. Escolha um modelo visual no carrossel.
-3. Clique em `Gerar currículo`.
-4. Veja a pre-visualizacao.
-5. Clique em `Editar currículo` se quiser ajustar nome, contato, objetivo, experiencias, habilidades, formacao, cursos ou informacoes adicionais.
-6. Clique em `Salvar alterações` para atualizar a pre-visualizacao e o PDF.
-7. Clique em `Baixar currículo em PDF`.
+2. Marque `Primeiro emprego` quando o curriculo for para jovem aprendiz, primeiro emprego ou pouca experiencia.
+3. Responda as perguntas opcionais que fizerem sentido para complementar o relato.
+4. Escolha um modelo visual.
+5. Clique em `Gerar currículo`.
+6. Veja a pre-visualizacao.
+7. Clique em `Editar currículo` se quiser ajustar nome, contato, objetivo, experiencias, habilidades, formacao, cursos ou informacoes adicionais.
+8. Clique em `Salvar alterações` para atualizar a pre-visualizacao e o PDF.
+9. Clique em `Baixar currículo em PDF`.
+
+## Historico local
+
+O sistema salva os ultimos curriculos gerados no `LocalStorage` do navegador.
+
+Esse historico guarda nome, data de criacao, template usado e dados do curriculo.
+
+Ele serve para abrir ou excluir curriculos recentes no mesmo navegador. Esses dados nao sao enviados para servidor por esse recurso.
+
+## Limite local de uso
+
+Existe uma protecao simples no navegador: no maximo 5 geracoes a cada 30 minutos.
+
+Esse limite usa `LocalStorage` e ajuda a reduzir spam da IA no mesmo navegador, mas nao substitui seguranca de servidor.
+
+## Analytics
+
+O projeto usa `@vercel/analytics` para acompanhar uso geral da aplicacao.
+
+Esse acompanhamento nao interfere na geracao do curriculo e nao substitui os cuidados de privacidade do historico local.
 
 ## Campos do curriculo
 
@@ -108,11 +139,20 @@ Quando algum dado nao aparece no relato, o campo fica vazio no codigo e a tela m
 
 ## Rota de API
 
-A rota `POST /api/gerar-curriculo` recebe um JSON com o relato do jovem:
+A rota `POST /api/gerar-curriculo` recebe um JSON com o relato do jovem, o modo Primeiro emprego e respostas complementares opcionais:
 
 ```json
 {
-  "relato": "Meu nome e Joao, tenho 18 anos, moro em Sao Paulo e ajudo meu tio na oficina."
+  "relato": "Meu nome e Joao, tenho 18 anos, moro em Sao Paulo e ajudo meu tio na oficina.",
+  "primeiroEmprego": true,
+  "respostasComplementares": {
+    "socialProject": "Participei de oficina de informatica",
+    "informalWork": "Ajudo meu tio na oficina",
+    "digitalSkills": "Canva e redes sociais",
+    "preferredArea": "Atendimento e administrativo",
+    "location": "Sao Paulo - SP",
+    "contact": "(11) 99999-9999"
+  }
 }
 ```
 

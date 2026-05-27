@@ -9,6 +9,9 @@ import { ArrowRight, PenLine } from "lucide-react";
 // Este import traz a barra animada que aparece enquanto a IA gera o currículo.
 import { LoadingProgress } from "@/components/LoadingProgress";
 
+// Este import traz o modo Primeiro emprego e as perguntas opcionais complementares.
+import { ResumeSmartQuestions } from "@/components/ResumeSmartQuestions";
+
 // Este import traz tipos do React para eventos de formulário e campo de texto.
 import type { ChangeEvent, FormEvent } from "react";
 
@@ -22,6 +25,18 @@ export function ResumeStoryForm({
 
   // Esta propriedade atualiza o texto quando o jovem digita.
   onStoryChange,
+
+  // Esta propriedade informa se o currículo deve focar em primeiro emprego.
+  firstJobMode,
+
+  // Esta propriedade liga ou desliga o modo Primeiro emprego.
+  onFirstJobModeChange,
+
+  // Esta propriedade guarda as respostas opcionais das perguntas inteligentes.
+  supplementalAnswers,
+
+  // Esta propriedade atualiza uma resposta complementar específica.
+  onSupplementalAnswerChange,
 
   // Esta propriedade gera o currículo quando o formulário é enviado.
   onGenerate,
@@ -105,6 +120,15 @@ export function ResumeStoryForm({
           placeholder="Exemplo: Meu nome é Ana, tenho 17 anos, moro em Recife, busco meu primeiro emprego, estudo o ensino médio, ajudo minha mãe no salão e fiz curso de informática..."
         />
       </div>
+
+      {/* Este componente coleta o modo Primeiro emprego e respostas opcionais antes da geração final. */}
+      <ResumeSmartQuestions
+        firstJobMode={firstJobMode}
+        onFirstJobModeChange={onFirstJobModeChange}
+        supplementalAnswers={supplementalAnswers}
+        onSupplementalAnswerChange={onSupplementalAnswerChange}
+        disabled={isGenerating}
+      />
 
       {/* Esta condição troca a mensagem simples pela barra profissional durante a geração. */}
       {loadingStatus !== "idle" ? (

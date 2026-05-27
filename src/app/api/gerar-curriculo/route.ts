@@ -11,6 +11,8 @@ import type {
   ResumeApiErrorResponse,
   ResumeApiRequestBody,
   ResumeApiSuccessResponse,
+  ResumeGenerationContext,
+  ResumeSupplementalAnswers,
 } from "@/types/resume";
 
 // Esta linha força a rota a rodar no Node.js, onde GEMINI_API_KEY fica segura no servidor.
@@ -19,6 +21,40 @@ export const runtime = "nodejs";
 
 // Esta constante define o tamanho máximo aceito para o relato, evitando requisições grandes demais.
 const maxStoryLength = 6000;
+
+// Esta constante define o tamanho máximo de cada resposta complementar para manter a chamada objetiva.
+const maxSupplementalAnswerLength = 1200;
+
+// Esta constante lista os campos aceitos nas perguntas inteligentes.
+const supplementalAnswerFields: Array<keyof ResumeSupplementalAnswers> = [
+  "socialProject",
+  "informalWork",
+  "digitalSkills",
+  "preferredArea",
+  "location",
+  "contact",
+];
+
+// Esta constante cria respostas vazias quando o usuário não responde alguma pergunta opcional.
+const emptySupplementalAnswers: ResumeSupplementalAnswers = {
+  // Este campo fica vazio se o jovem não citar projeto social, oficina ou curso.
+  socialProject: "",
+
+  // Este campo fica vazio se o jovem não citar ajuda ou trabalho informal.
+  informalWork: "",
+
+  // Este campo fica vazio se o jovem não citar habilidades digitais.
+  digitalSkills: "",
+
+  // Este campo fica vazio se o jovem não escolher área de preferência.
+  preferredArea: "",
+
+  // Este campo fica vazio se o jovem não informar bairro ou cidade.
+  location: "",
+
+  // Este campo fica vazio se o jovem não informar telefone ou e-mail.
+  contact: "",
+};
 
 // Esta função cria uma resposta JSON de erro com código HTTP adequado.
 function createErrorResponse(status: number, erro: string) {
@@ -50,6 +86,50 @@ function extractStoryFromBody(body: ResumeApiRequestBody) {
   return possibleStory.trim();
 }
 
+// Esta função extrai o modo Primeiro emprego do corpo da requisição.
+function extractFirstJobModeFromBody(body: ResumeApiRequestBody) {
+  // Esta linha trata qualquer valor diferente de true como modo desligado.
+  return body.primeiroEmprego === true;
+}
+
+// Esta função limpa uma resposta complementar sem criar ou completar informação.
+function cleanSupplementalAnswer(value: unknown) {
+  // Esta condição ignora valores que não são texto.
+  if (typeof value !== "string") {
+    // Este retorno vazio evita passar dados inesperados para a IA.
+    return "";
+  }
+
+  // Esta linha remove espaços duplicados e limita o tamanho de cada resposta opcional.
+  return value.replace(/\s+/g, " ").trim().slice(0, maxSupplementalAnswerLength);
+}
+
+// Esta função extrai as perguntas inteligentes no formato que a integração Gemini espera.
+function extractSupplementalAnswersFromBody(
+  body: ResumeApiRequestBody,
+): ResumeSupplementalAnswers {
+  // Esta constante começa com todas as respostas vazias para preservar a estrutura.
+  const answers: ResumeSupplementalAnswers = { ...emptySupplementalAnswers };
+
+  // Esta constante pega o objeto enviado pela interface, quando ele existir.
+  const rawAnswers = body.respostasComplementares;
+
+  // Esta condição ignora respostas complementares em formato inválido.
+  if (!rawAnswers || typeof rawAnswers !== "object" || Array.isArray(rawAnswers)) {
+    // Este retorno mantém as perguntas opcionais vazias.
+    return answers;
+  }
+
+  // Este laço copia apenas os campos conhecidos e limpa cada texto antes de chamar a IA.
+  supplementalAnswerFields.forEach((field) => {
+    // Esta linha salva a resposta limpa no campo correspondente.
+    answers[field] = cleanSupplementalAnswer(rawAnswers[field]);
+  });
+
+  // Este retorno entrega respostas opcionais seguras para o prompt.
+  return answers;
+}
+
 // Esta função valida o relato antes de enviar para a Gemini API.
 function validateStory(story: string) {
   // Esta condição impede chamada à IA com texto vazio.
@@ -66,6 +146,15 @@ function validateStory(story: string) {
 
   // Este retorno nulo indica que o relato passou na validação.
   return null;
+}
+
+// Esta função monta o contexto completo usado pela IA a partir do corpo da requisição.
+function buildGenerationContext(body: ResumeApiRequestBody): ResumeGenerationContext {
+  // Este retorno junta o modo Primeiro emprego com as perguntas opcionais limpas.
+  return {
+    firstJobMode: extractFirstJobModeFromBody(body),
+    supplementalAnswers: extractSupplementalAnswersFromBody(body),
+  };
 }
 
 // Esta função responde requisições POST para criar o currículo estruturado.
@@ -103,8 +192,11 @@ export async function POST(request: Request) {
       return createErrorResponse(400, validationError);
     }
 
-    // Esta linha envia o relato para o Gemini e recebe o currículo estruturado.
-    const curriculo = await generateResumeWithGemini(story);
+    // Esta constante guarda modo Primeiro emprego e respostas opcionais complementares.
+    const generationContext = buildGenerationContext(body);
+
+    // Esta linha envia o relato e o contexto complementar para o Gemini.
+    const curriculo = await generateResumeWithGemini(story, generationContext);
 
     // Esta constante garante que o objeto siga o tipo de sucesso definido para a API.
     const responseBody: ResumeApiSuccessResponse = { curriculo };
@@ -112,8 +204,8 @@ export async function POST(request: Request) {
     // Esta linha devolve o currículo em JSON organizado para quem chamou a API.
     return Response.json(responseBody);
   } catch (error) {
-    // Esta linha registra o erro no servidor para ajudar na investigação técnica.
-    console.error("Erro ao gerar currículo com Gemini:", error);
+    // Esta linha registra apenas um erro técnico genérico para não gravar relato, contato ou currículo em logs.
+    console.error("Erro técnico ao gerar currículo com Gemini.");
 
     // Esta condição trata uma falha de configuração que tenha escapado da checagem inicial.
     if (error instanceof GeminiConfigurationError) {

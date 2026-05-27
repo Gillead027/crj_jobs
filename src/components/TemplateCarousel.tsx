@@ -43,8 +43,8 @@ export function TemplateCarousel({
         <p className="break-words text-sm text-slate-600">Clique em um card para aplicar no currículo.</p>
       </div>
 
-      {/* Este bloco funciona como carrossel horizontal em telas menores. */}
-      <div className="-mx-1 mt-4 flex max-w-full snap-x gap-3 overflow-x-auto px-1 pb-2">
+      {/* Este bloco empilha cards no celular e vira carrossel horizontal em telas maiores. */}
+      <div className="mt-4 grid max-w-full gap-3 sm:-mx-1 sm:flex sm:snap-x sm:overflow-x-auto sm:px-1 sm:pb-2">
         {/* Este mapa cria um card para cada template disponível. */}
         {resumeTemplates.map((template) => {
           // Esta constante verifica se este card é o selecionado.
@@ -56,7 +56,7 @@ export function TemplateCarousel({
               key={template.id}
               type="button"
               onClick={() => onSelectTemplate(template.id)}
-              className={`w-[82vw] max-w-[230px] shrink-0 snap-start overflow-hidden rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md sm:w-[230px] ${
+              className={`w-full max-w-full overflow-hidden rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md sm:w-[230px] sm:shrink-0 sm:snap-start ${
                 isSelected
                   ? "border-slate-950 bg-white shadow-md"
                   : "border-slate-200 bg-white/80"

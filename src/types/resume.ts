@@ -62,6 +62,36 @@ export type ResumeTemplateOption = {
   accentClassName: string;
 };
 
+// Este tipo organiza um currículo salvo apenas no LocalStorage do navegador.
+export type ResumeHistoryItem = {
+  // Este campo identifica o item local para abrir ou excluir depois.
+  id: string;
+
+  // Este campo guarda o nome exibido no histórico recente.
+  name: string;
+
+  // Este campo guarda a data local em ISO para mostrar quando o currículo foi criado.
+  createdAt: string;
+
+  // Este campo guarda o template usado quando o currículo foi salvo.
+  templateId: ResumeTemplateId;
+
+  // Este campo guarda todos os dados do currículo salvo no navegador.
+  resume: ResumeData;
+};
+
+// Este tipo organiza as propriedades da área de histórico recente.
+export type ResumeHistoryPanelProps = {
+  // Este campo guarda os currículos salvos localmente neste navegador.
+  items: ResumeHistoryItem[];
+
+  // Esta função abre um currículo salvo no histórico local.
+  onOpen: (item: ResumeHistoryItem) => void;
+
+  // Esta função exclui um currículo do histórico local.
+  onDelete: (itemId: string) => void;
+};
+
 // Este tipo define os estados visuais da barra de carregamento.
 export type LoadingProgressStatus =
   // Este estado significa que a barra ainda não deve aparecer.
@@ -88,6 +118,36 @@ export type LoadingProgressProps = {
   errorMessage: string;
 };
 
+// Este tipo organiza as respostas opcionais que complementam o relato antes da IA gerar o currículo.
+export type ResumeSupplementalAnswers = {
+  // Este campo guarda projetos sociais, oficinas ou cursos citados depois do relato inicial.
+  socialProject: string;
+
+  // Este campo guarda ajudas e trabalhos informais citados nas perguntas inteligentes.
+  informalWork: string;
+
+  // Este campo guarda ferramentas digitais, como celular, computador, Canva, Word, Excel ou redes sociais.
+  digitalSkills: string;
+
+  // Este campo guarda a área de preferência do jovem, como atendimento, administrativo ou tecnologia.
+  preferredArea: string;
+
+  // Este campo guarda bairro, cidade ou referência de localidade informada nas perguntas.
+  location: string;
+
+  // Este campo guarda telefone ou e-mail que o jovem quer colocar no currículo.
+  contact: string;
+};
+
+// Este tipo organiza todos os dados extras enviados junto com o relato para a IA.
+export type ResumeGenerationContext = {
+  // Este campo informa se a IA deve adaptar o texto para jovem aprendiz e primeiro emprego.
+  firstJobMode: boolean;
+
+  // Este campo guarda respostas opcionais que enriquecem o currículo sem inventar informações.
+  supplementalAnswers: ResumeSupplementalAnswers;
+};
+
 // Este tipo organiza as propriedades que o formulário de relato precisa receber.
 export type ResumeStoryFormProps = {
   // Este campo guarda o texto que aparece dentro da área de relato.
@@ -95,6 +155,21 @@ export type ResumeStoryFormProps = {
 
   // Esta função avisa a página quando o jovem altera o relato.
   onStoryChange: (nextStory: string) => void;
+
+  // Este campo informa se o modo Primeiro emprego está marcado.
+  firstJobMode: boolean;
+
+  // Esta função liga ou desliga o modo Primeiro emprego na página principal.
+  onFirstJobModeChange: (nextValue: boolean) => void;
+
+  // Este campo guarda as respostas opcionais das perguntas inteligentes.
+  supplementalAnswers: ResumeSupplementalAnswers;
+
+  // Esta função atualiza uma resposta opcional sem apagar as outras respostas.
+  onSupplementalAnswerChange: (
+    field: keyof ResumeSupplementalAnswers,
+    nextValue: string,
+  ) => void;
 
   // Esta função avisa a página quando o jovem clica para gerar o currículo.
   // Ela pode ser assíncrona porque agora a página chama a rota da IA antes de mostrar a prévia.
@@ -165,6 +240,12 @@ export type ResumeApiRequestBody = {
 
   // Este campo permite receber o mesmo texto usando o nome já usado na tela.
   story?: string;
+
+  // Este campo liga o modo Primeiro emprego na rota de IA.
+  primeiroEmprego?: boolean;
+
+  // Este campo permite receber as perguntas complementares no formato usado pela interface.
+  respostasComplementares?: Partial<ResumeSupplementalAnswers>;
 };
 
 // Este tipo organiza o JSON que a IA devolve para a rota de API.

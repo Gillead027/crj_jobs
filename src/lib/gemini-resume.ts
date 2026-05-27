@@ -1,6 +1,10 @@
 // Este arquivo centraliza a integração com a Gemini API para gerar currículos.
 // A troca da IA fica isolada aqui: a rota não precisa conhecer detalhes de endpoint, schema ou resposta do Gemini.
-import type { AiResumeJson } from "@/types/resume";
+import type {
+  AiResumeJson,
+  ResumeGenerationContext,
+  ResumeSupplementalAnswers,
+} from "@/types/resume";
 
 // Esta constante guarda o endpoint REST oficial usado para chamar modelos Gemini pelo servidor.
 const geminiApiBaseUrl = "https://generativelanguage.googleapis.com/v1beta";
@@ -26,30 +30,30 @@ const resumeFieldOrder = [
 // Este schema usa o formato aceito pela Gemini API para forçar uma resposta em JSON estruturado.
 // Ele substitui o schema da integração anterior, mantendo os mesmos campos que a tela já sabe renderizar.
 const geminiResumeSchema = {
-  type: "OBJECT",
+  type: "object",
   properties: {
-    nome: { type: "STRING" },
-    idade: { type: "STRING" },
-    telefone: { type: "STRING" },
-    email: { type: "STRING" },
-    cidade: { type: "STRING" },
-    objetivoProfissional: { type: "STRING" },
-    formacao: { type: "STRING" },
+    nome: { type: "string" },
+    idade: { type: "string" },
+    telefone: { type: "string" },
+    email: { type: "string" },
+    cidade: { type: "string" },
+    objetivoProfissional: { type: "string" },
+    formacao: { type: "string" },
     experiencias: {
-      type: "ARRAY",
-      items: { type: "STRING" },
+      type: "array",
+      items: { type: "string" },
     },
     habilidades: {
-      type: "ARRAY",
-      items: { type: "STRING" },
+      type: "array",
+      items: { type: "string" },
     },
     cursos: {
-      type: "ARRAY",
-      items: { type: "STRING" },
+      type: "array",
+      items: { type: "string" },
     },
     informacoesAdicionais: {
-      type: "ARRAY",
-      items: { type: "STRING" },
+      type: "array",
+      items: { type: "string" },
     },
   },
   required: resumeFieldOrder,
@@ -61,18 +65,21 @@ const geminiResumeSchema = {
 const systemInstruction = `
 Você transforma relatos simples de jovens em currículos profissionais.
 Responda sempre em JSON válido seguindo exatamente o schema solicitado.
-Use português brasileiro profissional, claro e respeitoso.
+Use português brasileiro profissional, claro, respeitoso e natural.
+Escreva como um currículo que passaria por uma leitura rápida de RH moderno.
 Nunca invente experiência, curso, formação, cidade, telefone, e-mail, idade ou nome.
 Quando faltar uma informação, use string vazia ou lista vazia.
 Valorize experiências informais citadas, como ajudar familiar, cuidar de alguém, vender algo, participar de projeto, trabalho voluntário, oficina, igreja, escola ou comunidade.
 Pode melhorar a escrita do que foi citado, mas não pode criar fatos novos.
 Habilidades só podem entrar se forem citadas diretamente ou claramente demonstradas pelo relato.
 Não crie resumo profissional, seção de resumo ou texto descritivo sobre o relato.
-Seja objetivo: use frases curtas, sem parágrafos longos e sem repetir a mesma informação.
+Seja objetivo: use frases curtas, sem parágrafos longos, sem frases robóticas e sem repetir a mesma informação.
 Não repita dados de contato, formação, cursos ou habilidades dentro de experiências.
 O objetivo profissional deve ser curto, moderno e elegante, com no máximo 5 palavras, como "Jovem Aprendiz Administrativo", "Auxiliar Administrativo" ou "Primeiro Emprego".
 As experiências devem ser organizadas em itens profissionais curtos.
 Quando o jovem citar uma experiência informal, transforme a atividade em linguagem de currículo e adicione apenas responsabilidades compatíveis com o relato.
+Adapte a linguagem para jovens de diferentes contextos sociais sem usar termos estigmatizantes, julgamentos, rótulos ou explicações sobre vulnerabilidade.
+Use escola, projetos sociais, oficinas, cursos, habilidades pessoais, habilidades digitais e experiências informais apenas quando aparecerem no relato ou nas respostas complementares.
 Se o relato disser "Ajudo meu tio na oficina", uma boa experiência seria:
 experiencias: [
   "Auxílio em oficina mecânica familiar",
@@ -83,6 +90,27 @@ experiencias: [
 Nunca use prefixos explicativos como "Objetivo informado", "Experiências citadas", "Habilidades citadas" ou "Formação citada".
 Entregue apenas o conteúdo profissional final em cada campo.
 `.trim();
+
+// Esta lista traduz as chaves internas das perguntas complementares para textos claros no prompt.
+const supplementalAnswerLabels: Record<keyof ResumeSupplementalAnswers, string> = {
+  // Este rótulo identifica projetos sociais, oficinas ou cursos citados depois do relato.
+  socialProject: "Projeto social, oficina ou curso",
+
+  // Este rótulo identifica trabalhos informais e ajudas em família, escola, igreja ou comércio.
+  informalWork: "Ajuda ou trabalho informal",
+
+  // Este rótulo identifica ferramentas digitais informadas pelo jovem.
+  digitalSkills: "Habilidades digitais",
+
+  // Este rótulo identifica a área de preferência profissional.
+  preferredArea: "Área de preferência",
+
+  // Este rótulo identifica bairro, cidade ou região informada.
+  location: "Bairro ou cidade",
+
+  // Este rótulo identifica telefone ou e-mail que deve entrar no currículo.
+  contact: "Telefone ou e-mail",
+};
 
 // Este tipo descreve a parte de texto que o Gemini devolve dentro de cada candidato.
 type GeminiTextPart = {
@@ -168,8 +196,83 @@ function buildGeminiUrl(model: string) {
   return `${geminiApiBaseUrl}/models/${encodeURIComponent(modelName)}:generateContent`;
 }
 
+// Esta função monta o texto das respostas complementares para a IA usar como dados informados pelo jovem.
+function buildSupplementalAnswersText(answers: ResumeSupplementalAnswers) {
+  // Esta constante cria uma linha apenas para respostas realmente preenchidas.
+  const answeredQuestions = Object.entries(answers)
+    .map(([field, value]) => {
+      // Esta constante recupera o rótulo humano da pergunta complementar.
+      const label = supplementalAnswerLabels[field as keyof ResumeSupplementalAnswers];
+
+      // Esta constante limpa o valor antes de colocá-lo no prompt.
+      const cleanValue = value.trim();
+
+      // Esta condição ignora perguntas vazias para não sugerir dados inexistentes à IA.
+      if (!cleanValue) {
+        // Este retorno nulo será removido pelo filtro abaixo.
+        return null;
+      }
+
+      // Este retorno transforma a resposta em uma linha objetiva para o prompt.
+      return `- ${label}: ${cleanValue}`;
+    })
+    .filter(Boolean);
+
+  // Esta condição evita criar contexto falso quando nenhuma pergunta foi respondida.
+  if (answeredQuestions.length === 0) {
+    // Este retorno deixa claro para a IA que não há dados complementares.
+    return "Nenhuma resposta complementar informada.";
+  }
+
+  // Este retorno junta as respostas em linhas, preservando o que o jovem escreveu.
+  return answeredQuestions.join("\n");
+}
+
+// Esta função cria uma instrução adicional quando o usuário marca o modo Primeiro emprego.
+function buildFirstJobInstruction(firstJobMode: boolean) {
+  // Esta condição mantém o currículo geral quando o modo não está marcado.
+  if (!firstJobMode) {
+    // Este retorno avisa que não há adaptação especial além das regras gerais.
+    return "Modo Primeiro emprego: desativado. Gere um currículo profissional geral com base apenas nos dados informados.";
+  }
+
+  // Este retorno explica como o modo Primeiro emprego deve mudar a leitura da IA.
+  return `
+Modo Primeiro emprego: ativado.
+Adapte o currículo para jovem aprendiz, primeiro emprego e pouca experiência.
+Valorize escola, projetos sociais, cursos, oficinas, habilidades pessoais, habilidades digitais e experiências informais citadas.
+Quando não houver experiência formal, não escreva que a pessoa não tem experiência; apenas organize o que foi informado de forma positiva e objetiva.
+Prefira objetivos como "Jovem Aprendiz", "Primeiro Emprego", "Jovem Aprendiz Administrativo" ou área indicada pelo jovem.
+`.trim();
+}
+
+// Esta função monta o texto do usuário com relato, modo Primeiro emprego e perguntas complementares.
+function buildUserPrompt(story: string, context: ResumeGenerationContext) {
+  // Esta constante transforma as respostas opcionais em linhas legíveis para o Gemini.
+  const supplementalAnswersText = buildSupplementalAnswersText(
+    context.supplementalAnswers,
+  );
+
+  // Esta constante cria a regra específica do modo Primeiro emprego.
+  const firstJobInstruction = buildFirstJobInstruction(context.firstJobMode);
+
+  // Este retorno separa relato e complementos para a IA entender a origem de cada dado.
+  return `
+Relato principal do jovem:
+${story}
+
+${firstJobInstruction}
+
+Respostas complementares opcionais:
+${supplementalAnswersText}
+
+Use o relato principal e as respostas complementares como informações fornecidas pelo jovem.
+Não preencha campos com suposições.
+`.trim();
+}
+
 // Esta função monta o corpo da requisição no formato da Gemini API.
-function buildGeminiRequestBody(story: string) {
+function buildGeminiRequestBody(story: string, context: ResumeGenerationContext) {
   // Este retorno envia instrução de sistema, relato do jovem e configuração de JSON estruturado.
   return {
     // Esta instrução fixa substitui a antiga mensagem de sistema da integração anterior.
@@ -181,15 +284,21 @@ function buildGeminiRequestBody(story: string) {
     contents: [
       {
         role: "user",
-        parts: [{ text: `Relato do jovem:\n${story}` }],
+        parts: [{ text: buildUserPrompt(story, context) }],
       },
     ],
 
     // Esta configuração obriga o Gemini a responder como JSON seguindo o schema do currículo.
     generationConfig: {
       temperature: 0.2,
-      response_mime_type: "application/json",
-      response_schema: geminiResumeSchema,
+      // Este formato segue a API atual de structured outputs do Gemini.
+      responseFormat: {
+        // Este bloco informa que a resposta textual deve ser JSON validado pelo schema.
+        text: {
+          mimeType: "application/json",
+          schema: geminiResumeSchema,
+        },
+      },
     },
   };
 }
@@ -359,7 +468,10 @@ function cleanAiResume(curriculo: AiResumeJson): AiResumeJson {
 }
 
 // Esta função principal chama a Gemini API e devolve o currículo validado.
-export async function generateResumeWithGemini(story: string) {
+export async function generateResumeWithGemini(
+  story: string,
+  context: ResumeGenerationContext,
+) {
   // Esta constante pega a chave do Gemini apenas no servidor.
   const apiKey = getGeminiApiKey();
 
@@ -373,7 +485,7 @@ export async function generateResumeWithGemini(story: string) {
       "Content-Type": "application/json",
       "x-goog-api-key": apiKey,
     },
-    body: JSON.stringify(buildGeminiRequestBody(story)),
+    body: JSON.stringify(buildGeminiRequestBody(story, context)),
   });
 
   // Esta condição transforma falhas HTTP do Gemini em erro controlado no servidor.

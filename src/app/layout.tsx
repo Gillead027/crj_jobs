@@ -1,4 +1,5 @@
 // Este arquivo cria a estrutura principal de todas as paginas do sistema.
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 
 // Este import carrega os estilos globais para todas as telas do projeto.
@@ -10,7 +11,27 @@ export const metadata: Metadata = {
   title: "Gerador de Currículo CRJ",
 
   // Esta descricao resume o objetivo do sistema.
-  description: "Transforme um relato simples em um currículo profissional.",
+  description:
+    "Sistema gratuito para jovens criarem currículos profissionais de forma simples.",
+
+  // Este bloco melhora o compartilhamento em redes sociais e aplicativos de mensagem.
+  openGraph: {
+    // Este título aparece quando o link é compartilhado.
+    title: "Gerador de Currículo CRJ",
+
+    // Esta descrição aparece no preview do link compartilhado.
+    description:
+      "Sistema gratuito para jovens criarem currículos profissionais de forma simples.",
+
+    // Este tipo informa que a página principal é um site.
+    type: "website",
+
+    // Este locale reforça o português brasileiro.
+    locale: "pt_BR",
+
+    // Este nome identifica o projeto no preview de compartilhamento.
+    siteName: "Gerador de Currículo CRJ",
+  },
 
   // Este bloco configura os icones do site usados pelo navegador.
   // O favicon aparece na aba, e o icone maior pode ser usado em atalhos ou favoritos.
@@ -38,7 +59,13 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="pt-BR">
       {/* Este body recebe classes de fonte, suavizacao e tamanho minimo da tela. */}
-      <body className="min-h-screen font-sans antialiased">{children}</body>
+      <body className="min-h-screen font-sans antialiased">
+        {children}
+
+        {/* Este Analytics acompanha uso geral do projeto sem interferir na geração do currículo. */}
+        {/* Ele não salva o histórico local nem envia currículo completo criado no navegador. */}
+        <Analytics />
+      </body>
     </html>
   );
 }

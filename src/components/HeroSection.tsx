@@ -4,7 +4,8 @@
 import { motion } from "framer-motion";
 
 // Este import traz ícones prontos para deixar a interface mais clara.
-import { FileText, Sparkles } from "lucide-react";
+import { FileText, Info, Sparkles } from "lucide-react";
+import Link from "next/link";
 
 // Este componente mostra o título, a proposta do sistema e uma prévia visual do resultado.
 export function HeroSection() {
@@ -38,6 +39,18 @@ export function HeroSection() {
           oportunidade busca. O Gerador de Currículo CRJ organiza tudo em um
           modelo bonito, profissional e pronto para baixar.
         </p>
+
+        {/* Este link abre a página institucional sem sair do projeto. */}
+        <Link
+          href="/sobre"
+          className="mt-5 inline-flex max-w-full items-center gap-2 rounded-lg border border-teal-200 bg-white/75 px-4 py-2 text-sm font-bold text-teal-800 transition hover:bg-white focus-visible:outline-teal-700"
+        >
+          {/* Este ícone indica que o link leva a informações sobre o projeto. */}
+          <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+
+          {/* Este texto mantém o acesso à rota /sobre visível no gerador. */}
+          <span className="min-w-0 break-words">Sobre o projeto</span>
+        </Link>
       </motion.div>
 
       {/* Este bloco animado mostra uma miniatura visual do currículo final. */}

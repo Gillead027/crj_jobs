@@ -3,42 +3,67 @@
 // Este arquivo cria a barra de progresso exibida enquanto a IA gera o currículo.
 import { motion } from "framer-motion";
 
-// Este import traz ícones simples para mostrar carregamento, sucesso e erro.
-import { AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
+// Este import traz ícones simples para mostrar carregamento, sucesso, etapas e erro.
+import { AlertCircle, CheckCircle2, Circle, Sparkles } from "lucide-react";
 
 // Este import traz o tipo das propriedades recebidas pelo componente.
 import type { LoadingProgressProps } from "@/types/resume";
 
-// Esta lista guarda as mensagens curtas que aparecem durante o carregamento.
-const progressMessages = [
-  // Esta mensagem aparece no começo, quando o sistema começa a ler o relato.
-  { minimumProgress: 0, text: "Lendo sua história..." },
+// Esta lista guarda as etapas visuais que aparecem durante o carregamento da IA.
+const progressSteps = [
+  // Esta etapa fica ativa no começo, quando o sistema começa a ler o relato.
+  { minimumProgress: 0, completionProgress: 20, text: "Lendo relato" },
 
-  // Esta mensagem aparece quando a IA começa a transformar atividades em experiências.
-  { minimumProgress: 25, text: "Organizando suas experiências..." },
+  // Esta etapa aparece quando o sistema transforma atividades citadas em experiências.
+  { minimumProgress: 20, completionProgress: 45, text: "Organizando experiências" },
 
-  // Esta mensagem aparece quando o sistema valoriza habilidades citadas no relato.
-  { minimumProgress: 50, text: "Valorizando suas habilidades..." },
+  // Esta etapa aparece quando habilidades pessoais e digitais são destacadas.
+  { minimumProgress: 45, completionProgress: 68, text: "Valorizando habilidades" },
 
-  // Esta mensagem aparece na parte final antes da pré-visualização.
-  { minimumProgress: 75, text: "Montando seu currículo profissional..." },
+  // Esta etapa aparece quando o template escolhido está sendo aplicado na experiência visual.
+  { minimumProgress: 68, completionProgress: 88, text: "Aplicando template" },
+
+  // Esta etapa aparece no fim, quando a resposta da IA está quase pronta ou concluída.
+  { minimumProgress: 88, completionProgress: 100, text: "Finalizando currículo" },
 ] as const;
 
-// Esta função escolhe qual mensagem deve aparecer conforme a porcentagem da barra.
+// Esta função escolhe qual etapa deve aparecer como mensagem principal conforme a porcentagem da barra.
 function getProgressMessage(progress: number) {
-  // Esta linha pega a última mensagem compatível com o progresso atual.
-  const currentMessage = progressMessages
-    .filter((message) => progress >= message.minimumProgress)
+  // Esta linha pega a última etapa compatível com o progresso atual.
+  const currentMessage = progressSteps
+    .filter((step) => progress >= step.minimumProgress)
     .at(-1);
 
-  // Este retorno usa a primeira mensagem como segurança caso o progresso venha vazio.
-  return currentMessage?.text ?? progressMessages[0].text;
+  // Este retorno usa a primeira etapa como segurança caso o progresso venha vazio.
+  return currentMessage?.text ?? progressSteps[0].text;
 }
 
 // Esta função limita o progresso entre 0 e 100 para evitar valores visuais inválidos.
 function clampProgress(progress: number) {
   // Esta linha garante que a barra nunca passe de 100 e nunca fique menor que 0.
   return Math.min(100, Math.max(0, progress));
+}
+
+// Esta função define se uma etapa está pendente, ativa ou concluída.
+function getStepStatus(
+  step: (typeof progressSteps)[number],
+  progress: number,
+  isComplete: boolean,
+) {
+  // Esta condição marca tudo como concluído quando a IA já respondeu com sucesso.
+  if (isComplete || progress >= step.completionProgress) {
+    // Este retorno mostra ícone de check na etapa.
+    return "complete";
+  }
+
+  // Esta condição identifica a etapa atual pelo intervalo de progresso.
+  if (progress >= step.minimumProgress) {
+    // Este retorno mostra a etapa em destaque enquanto ela está em andamento.
+    return "active";
+  }
+
+  // Este retorno deixa etapas futuras em estado discreto.
+  return "pending";
 }
 
 // Este componente mostra uma barra profissional enquanto o currículo está sendo gerado.
@@ -132,6 +157,52 @@ export function LoadingProgress({
           transition={{ duration: 0.45, ease: "easeOut" }}
         />
       </div>
+
+      {/* Esta lista mostra cada etapa visual e muda para concluída conforme a barra avança. */}
+      {!isError ? (
+        <ol className="mt-4 grid min-w-0 gap-2 sm:grid-cols-2">
+          {/* Este mapa renderiza as cinco etapas pedidas para o loading. */}
+          {progressSteps.map((step) => {
+            // Esta constante calcula o estado visual da etapa atual.
+            const stepStatus = getStepStatus(step, safeProgress, isComplete);
+
+            // Esta constante indica se a etapa já foi concluída.
+            const isStepComplete = stepStatus === "complete";
+
+            // Esta constante indica se a etapa está em andamento.
+            const isStepActive = stepStatus === "active";
+
+            // Este retorno monta uma linha compacta e responsiva para a etapa.
+            return (
+              <li
+                key={step.text}
+                className={`flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold ${
+                  isStepComplete
+                    ? "border-teal-200 bg-white text-teal-800"
+                    : isStepActive
+                      ? "border-amber-200 bg-white text-slate-900"
+                      : "border-transparent bg-white/50 text-slate-500"
+                }`}
+              >
+                {/* Este ícone muda para check quando a etapa foi concluída. */}
+                {isStepComplete ? (
+                  <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                ) : (
+                  <Circle
+                    className={`h-4 w-4 shrink-0 ${
+                      isStepActive ? "fill-amber-300 text-amber-500" : "text-slate-300"
+                    }`}
+                    aria-hidden="true"
+                  />
+                )}
+
+                {/* Este texto mostra o nome da etapa e quebra linha sem estourar o card. */}
+                <span className="min-w-0 break-words">{step.text}</span>
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
 
       {/* Este texto final mantém a experiência simples, sem explicar detalhes técnicos ao usuário. */}
       {!isError ? (

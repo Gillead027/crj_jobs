@@ -3,11 +3,11 @@
 // Este arquivo monta as duas etapas do Gerador de Currículo CRJ.
 import { AnimatePresence, motion } from "framer-motion";
 
-// Este import traz os ícones usados nos botões de voltar e editar currículo.
-import { ArrowLeft, Pencil } from "lucide-react";
+// Este import traz os ícones usados nos botões de voltar, editar e criar currículo.
+import { ArrowLeft, FilePlus2, Pencil } from "lucide-react";
 
-// Este import permite guardar estados da tela, do currículo e do carregamento da IA.
-import { useState } from "react";
+// Este import permite guardar estados da tela, do currículo, do histórico e do carregamento da IA.
+import { useEffect, useState } from "react";
 
 // Este import traz o botão separado que baixa o currículo em PDF.
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
@@ -17,6 +17,9 @@ import { HeroSection } from "@/components/HeroSection";
 
 // Este import traz o componente que mostra a pré-visualização do currículo.
 import { ResumePreview } from "@/components/ResumePreview";
+
+// Este import traz a área de histórico salvo apenas no navegador.
+import { ResumeHistoryPanel } from "@/components/ResumeHistoryPanel";
 
 // Este import traz o editor aberto depois que o currículo foi gerado.
 import { ResumeEditor } from "@/components/ResumeEditor";
@@ -33,6 +36,16 @@ import { createResumeFromStory, exampleStory } from "@/lib/resume-generator";
 // Este import traz informações do template escolhido para mostrar na etapa de preview.
 import { getResumeTemplate } from "@/lib/resume-templates";
 
+// Este import traz funções de histórico local e limite simples por navegador.
+import {
+  checkLocalGenerationLimit,
+  deleteResumeFromHistory,
+  formatRetryAfter,
+  readResumeHistory,
+  recordLocalGenerationAttempt,
+  saveResumeToHistory,
+} from "@/lib/resume-local-storage";
+
 // Este import traz os tipos de dados usados pela página e pela resposta da API.
 import type {
   AiResumeJson,
@@ -40,6 +53,9 @@ import type {
   ResumeApiErrorResponse,
   ResumeApiSuccessResponse,
   ResumeData,
+  ResumeGenerationContext,
+  ResumeHistoryItem,
+  ResumeSupplementalAnswers,
   ResumeTemplateId,
 } from "@/types/resume";
 
@@ -63,6 +79,67 @@ const successPreviewDelay = 650;
 // Esta constante guarda a mensagem padrão quando a IA falha sem devolver um motivo amigável.
 const genericAiErrorMessage =
   "Não foi possível gerar com IA agora. Tente novamente em instantes.";
+
+// Esta constante guarda a mensagem amigável usada quando o limite local é atingido.
+const localLimitMessage =
+  "Você atingiu o limite temporário de gerações. Tente novamente em alguns minutos.";
+
+// Esta constante cria um currículo vazio para limpar dados ao iniciar um novo currículo.
+const emptyResume: ResumeData = {
+  // Este campo fica vazio até a IA ou o usuário preencherem o nome.
+  name: "",
+
+  // Este campo fica vazio até o jovem informar idade.
+  age: "",
+
+  // Este campo fica vazio até o jovem informar telefone.
+  phone: "",
+
+  // Este campo fica vazio até o jovem informar e-mail.
+  email: "",
+
+  // Este campo fica vazio até o jovem informar cidade.
+  city: "",
+
+  // Este campo fica vazio até a IA criar um objetivo com base no relato.
+  professionalObjective: "",
+
+  // Este campo fica vazio até o jovem informar formação.
+  education: "",
+
+  // Esta lista começa vazia para não manter experiências de um currículo anterior.
+  experiences: [],
+
+  // Esta lista começa vazia para não manter habilidades de um currículo anterior.
+  skills: [],
+
+  // Esta lista começa vazia para não manter cursos de um currículo anterior.
+  courses: [],
+
+  // Esta lista começa vazia para não manter informações adicionais antigas.
+  additionalInfo: [],
+};
+
+// Esta constante cria respostas complementares vazias para iniciar o formulário.
+const emptySupplementalAnswers: ResumeSupplementalAnswers = {
+  // Este campo começa vazio porque projetos, oficinas e cursos são opcionais.
+  socialProject: "",
+
+  // Este campo começa vazio porque trabalhos informais só entram se o jovem contar.
+  informalWork: "",
+
+  // Este campo começa vazio porque habilidades digitais não devem ser inventadas.
+  digitalSkills: "",
+
+  // Este campo começa vazio porque a área desejada é uma preferência opcional.
+  preferredArea: "",
+
+  // Este campo começa vazio porque bairro ou cidade precisam vir do jovem.
+  location: "",
+
+  // Este campo começa vazio porque telefone e e-mail só entram se forem informados.
+  contact: "",
+};
 
 // Esta função converte o JSON em português vindo da IA para o formato usado pelos componentes.
 function mapAiResumeToResumeData(curriculo: AiResumeJson): ResumeData {
@@ -133,7 +210,7 @@ function getFriendlyAiErrorMessage(error: unknown) {
 }
 
 // Esta função envia o relato para a rota segura do Next.js, que roda no servidor.
-async function requestAiResume(story: string) {
+async function requestAiResume(story: string, context: ResumeGenerationContext) {
   // Esta chamada usa caminho relativo para funcionar tanto localmente quanto na Vercel.
   const response = await fetch("/api/gerar-curriculo", {
     // Este método envia o relato para a API em vez de colocar dados na URL.
@@ -142,8 +219,12 @@ async function requestAiResume(story: string) {
     // Este cabeçalho informa que o corpo da requisição é JSON.
     headers: { "Content-Type": "application/json" },
 
-    // Este corpo envia apenas o relato; a chave da Gemini API fica protegida no servidor.
-    body: JSON.stringify({ relato: story }),
+    // Este corpo envia o relato, o modo Primeiro emprego e as respostas opcionais para o servidor.
+    body: JSON.stringify({
+      relato: story,
+      primeiroEmprego: context.firstJobMode,
+      respostasComplementares: context.supplementalAnswers,
+    }),
   });
 
   // Esta linha lê o JSON de sucesso ou erro devolvido pela rota.
@@ -203,8 +284,33 @@ export default function Home() {
   // Este estado controla se os campos editáveis do currículo gerado estão abertos.
   const [isEditingResume, setIsEditingResume] = useState(false);
 
+  // Este estado guarda o histórico recente salvo apenas no LocalStorage do navegador.
+  const [resumeHistory, setResumeHistory] = useState<ResumeHistoryItem[]>([]);
+
+  // Este estado guarda qual item do histórico está aberto, para editar sem duplicar.
+  const [currentHistoryItemId, setCurrentHistoryItemId] = useState<string | null>(null);
+
+  // Este estado liga a adaptação da IA para jovem aprendiz, primeiro emprego e pouca experiência.
+  const [firstJobMode, setFirstJobMode] = useState(false);
+
+  // Este estado guarda respostas opcionais que complementam o relato antes de chamar a IA.
+  const [supplementalAnswers, setSupplementalAnswers] =
+    useState<ResumeSupplementalAnswers>(emptySupplementalAnswers);
+
   // Esta constante busca nome e descrição do template selecionado.
   const selectedTemplate = getResumeTemplate(selectedTemplateId);
+
+  // Este efeito carrega o histórico local depois que a tela chega ao navegador.
+  useEffect(() => {
+    // Esta carga usa setTimeout para evitar atualização síncrona dentro do efeito.
+    const loadHistoryTimer = window.setTimeout(() => {
+      // Esta linha lê apenas o LocalStorage deste navegador, sem buscar nada no servidor.
+      setResumeHistory(readResumeHistory());
+    }, 0);
+
+    // Este retorno cancela a carga se o componente sair da tela rapidamente.
+    return () => window.clearTimeout(loadHistoryTimer);
+  }, []);
 
   // Esta função atualiza o relato e mantém o usuário na etapa de escrita.
   function handleStoryChange(nextStory: string) {
@@ -222,6 +328,70 @@ export default function Home() {
 
     // Esta linha remove o erro antigo depois que o jovem volta a mexer no relato.
     setLoadingErrorMessage("");
+  }
+
+  // Esta função liga ou desliga o modo Primeiro emprego no fluxo de geração.
+  function handleFirstJobModeChange(nextValue: boolean) {
+    // Esta linha salva o modo para a próxima chamada de IA adaptar o currículo corretamente.
+    setFirstJobMode(nextValue);
+
+    // Esta linha limpa mensagens antigas porque o contexto do currículo mudou.
+    setMessage("");
+  }
+
+  // Esta função atualiza uma resposta opcional das perguntas inteligentes.
+  function handleSupplementalAnswerChange(
+    field: keyof ResumeSupplementalAnswers,
+    nextValue: string,
+  ) {
+    // Esta linha altera apenas a pergunta editada e preserva as outras respostas.
+    setSupplementalAnswers((currentAnswers) => ({
+      ...currentAnswers,
+      [field]: nextValue,
+    }));
+
+    // Esta linha remove mensagens antigas quando o jovem complementa o relato.
+    setMessage("");
+  }
+
+  // Esta função salva o currículo atual no histórico local do navegador.
+  function persistResumeHistory(nextResume: ResumeData, templateId: ResumeTemplateId) {
+    // Esta linha grava apenas no LocalStorage, mantendo os dados fora do servidor.
+    const savedHistory = saveResumeToHistory({
+      resume: nextResume,
+      templateId,
+      existingItemId: currentHistoryItemId,
+    });
+
+    // Esta linha atualiza a área "Histórico recente" com a lista salva.
+    setResumeHistory(savedHistory.history);
+
+    // Esta linha guarda o id local para futuras edições atualizarem o mesmo item.
+    setCurrentHistoryItemId(savedHistory.item.id);
+  }
+
+  // Esta função aplica o limite simples de 5 gerações a cada 30 minutos por navegador.
+  function canGenerateWithLocalLimit() {
+    // Esta proteção usa LocalStorage e ajuda contra spam simples, mas não substitui segurança de servidor.
+    const limitResult = checkLocalGenerationLimit();
+
+    // Esta condição libera a geração quando o navegador ainda está dentro do limite local.
+    if (limitResult.allowed) {
+      // Este retorno positivo permite seguir para a chamada de IA.
+      return true;
+    }
+
+    // Esta constante mostra um tempo aproximado sem revelar detalhes técnicos ao usuário.
+    const retryAfter = formatRetryAfter(limitResult.retryAfterMs);
+
+    // Esta mensagem amigável atende ao limite temporário pedido.
+    setMessage(`${localLimitMessage} Aguarde cerca de ${retryAfter}.`);
+
+    // Esta linha deixa a barra escondida porque a chamada de IA nem começou.
+    setLoadingStatus("idle");
+
+    // Este retorno bloqueia a chamada para reduzir excesso de tentativas no navegador.
+    return false;
   }
 
   // Esta função roda quando o usuário clica em "Gerar currículo".
@@ -243,6 +413,15 @@ export default function Home() {
       // Este retorno mantém a chamada atual em andamento.
       return;
     }
+
+    // Esta condição aplica o limite simples local antes de chamar a rota de IA.
+    if (!canGenerateWithLocalLimit()) {
+      // Este retorno evita registrar tentativa e evita chamada ao servidor quando o navegador passou do limite.
+      return;
+    }
+
+    // Esta linha registra a tentativa no navegador antes da chamada para reduzir spam da IA.
+    recordLocalGenerationAttempt();
 
     // Esta linha limpa mensagens simples porque a barra vai mostrar o carregamento visual.
     setMessage("");
@@ -280,14 +459,23 @@ export default function Home() {
 
     // Este bloco tenta usar a IA e só avança para a pré-visualização quando houver sucesso.
     try {
+      // Esta constante reúne o modo Primeiro emprego e as respostas opcionais para a IA.
+      const generationContext: ResumeGenerationContext = {
+        firstJobMode,
+        supplementalAnswers,
+      };
+
       // Esta linha chama a API interna, que usa GEMINI_API_KEY apenas no servidor.
-      const aiResume = await requestAiResume(story.trim());
+      const aiResume = await requestAiResume(story.trim(), generationContext);
 
       // Esta linha para a simulação porque a IA já respondeu.
       window.clearInterval(progressTimer);
 
       // Esta linha salva o currículo profissional devolvido pela IA.
       setResume(aiResume);
+
+      // Esta linha salva os dados gerados no histórico local deste navegador.
+      persistResumeHistory(aiResume, selectedTemplateId);
 
       // Esta linha fecha o editor caso o usuário gere uma nova versão do currículo.
       setIsEditingResume(false);
@@ -313,8 +501,8 @@ export default function Home() {
       // Esta linha para a simulação porque houve falha na IA.
       window.clearInterval(progressTimer);
 
-      // Esta linha registra o erro no console para investigação, sem mostrar detalhes técnicos ao usuário.
-      console.error("Falha ao gerar currículo com IA:", error);
+      // Esta linha registra apenas evento técnico genérico, sem relato, telefone, e-mail ou currículo completo.
+      console.error("Falha técnica ao gerar currículo com IA.");
 
       // Esta linha libera o botão para o jovem tentar gerar novamente.
       setIsGenerating(false);
@@ -348,6 +536,79 @@ export default function Home() {
     setIsEditingResume(false);
   }
 
+  // Esta função começa um currículo novo do zero.
+  function handleNewResume() {
+    // Esta linha limpa o relato para o jovem escrever outra história.
+    setStory("");
+
+    // Esta linha limpa respostas opcionais para não misturar dados de outro currículo.
+    setSupplementalAnswers(emptySupplementalAnswers);
+
+    // Esta linha desliga o modo Primeiro emprego para recomeçar neutro.
+    setFirstJobMode(false);
+
+    // Esta linha limpa o currículo gerado que alimentava a pré-visualização e o PDF.
+    setResume(emptyResume);
+
+    // Esta linha volta o template para o padrão inicial.
+    setSelectedTemplateId("classic-elegant");
+
+    // Esta linha volta para a primeira etapa do fluxo.
+    setStep("story");
+
+    // Esta linha fecha o editor caso ele estivesse aberto.
+    setIsEditingResume(false);
+
+    // Esta linha desconecta o novo fluxo de qualquer item antigo do histórico.
+    setCurrentHistoryItemId(null);
+
+    // Estas linhas limpam estados visuais de carregamento e mensagens antigas.
+    setLoadingStatus("idle");
+    setLoadingProgress(0);
+    setLoadingErrorMessage("");
+    setMessage("Comece um novo currículo preenchendo o relato.");
+  }
+
+  // Esta função abre um currículo salvo no histórico local.
+  function handleOpenHistoryItem(item: ResumeHistoryItem) {
+    // Esta linha carrega os dados salvos no navegador para a pré-visualização.
+    setResume(item.resume);
+
+    // Esta linha aplica o template salvo junto com o currículo.
+    setSelectedTemplateId(item.templateId);
+
+    // Esta linha guarda o id local para salvar edições no mesmo item.
+    setCurrentHistoryItemId(item.id);
+
+    // Esta linha abre a etapa de pré-visualização.
+    setStep("preview");
+
+    // Estas linhas limpam estados temporários que não pertencem ao currículo salvo.
+    setIsEditingResume(false);
+    setLoadingStatus("idle");
+    setLoadingProgress(0);
+    setLoadingErrorMessage("");
+    setMessage("Currículo aberto do histórico local deste navegador.");
+  }
+
+  // Esta função exclui um currículo salvo no histórico local.
+  function handleDeleteHistoryItem(itemId: string) {
+    // Esta linha remove o item apenas do LocalStorage do navegador.
+    const nextHistory = deleteResumeFromHistory(itemId);
+
+    // Esta linha atualiza a área visual do histórico recente.
+    setResumeHistory(nextHistory);
+
+    // Esta condição desconecta a pré-visualização se o item aberto foi excluído.
+    if (currentHistoryItemId === itemId) {
+      // Esta linha evita salvar edições futuras em um id que já foi apagado.
+      setCurrentHistoryItemId(null);
+    }
+
+    // Esta mensagem confirma que a exclusão foi apenas local.
+    setMessage("Item removido do histórico local.");
+  }
+
   // Esta função abre ou fecha o editor do currículo gerado.
   function handleToggleResumeEditor() {
     // Esta linha alterna o painel de edição sem alterar a pré-visualização ainda.
@@ -358,6 +619,9 @@ export default function Home() {
   function handleSaveResumeChanges(nextResume: ResumeData) {
     // Esta linha atualiza o mesmo estado usado pela pré-visualização e pelo botão de PDF.
     setResume(nextResume);
+
+    // Esta linha salva a versão editada no histórico local usado para abrir depois.
+    persistResumeHistory(nextResume, selectedTemplateId);
 
     // Esta linha fecha o editor depois de aplicar os dados editados.
     setIsEditingResume(false);
@@ -392,6 +656,10 @@ export default function Home() {
                 <ResumeStoryForm
                   story={story}
                   onStoryChange={handleStoryChange}
+                  firstJobMode={firstJobMode}
+                  onFirstJobModeChange={handleFirstJobModeChange}
+                  supplementalAnswers={supplementalAnswers}
+                  onSupplementalAnswerChange={handleSupplementalAnswerChange}
                   onGenerate={handleGenerate}
                   isGenerating={isGenerating}
                   loadingProgress={loadingProgress}
@@ -400,11 +668,21 @@ export default function Home() {
                   message={message}
                 />
 
-                {/* Este componente permite escolher o visual do currículo antes de gerar. */}
-                <TemplateCarousel
-                  selectedTemplateId={selectedTemplateId}
-                  onSelectTemplate={setSelectedTemplateId}
-                />
+                {/* Este bloco lateral reúne escolha de template e histórico local. */}
+                <div className="space-y-6">
+                  {/* Este componente permite escolher o visual do currículo antes de gerar. */}
+                  <TemplateCarousel
+                    selectedTemplateId={selectedTemplateId}
+                    onSelectTemplate={setSelectedTemplateId}
+                  />
+
+                  {/* Este componente mostra apenas currículos salvos no navegador atual. */}
+                  <ResumeHistoryPanel
+                    items={resumeHistory}
+                    onOpen={handleOpenHistoryItem}
+                    onDelete={handleDeleteHistoryItem}
+                  />
+                </div>
               </div>
             </motion.div>
           ) : (
@@ -464,6 +742,19 @@ export default function Home() {
 
                     {/* Este texto atende ao pedido de criar o botão Editar currículo. */}
                     <span className="min-w-0 break-words">Editar currículo</span>
+                  </button>
+
+                  {/* Este botão limpa tudo e inicia outro currículo do zero. */}
+                  <button
+                    type="button"
+                    onClick={handleNewResume}
+                    className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 transition hover:bg-amber-100 focus-visible:outline-amber-700 sm:w-auto"
+                  >
+                    {/* Este ícone reforça que o usuário começará um novo documento. */}
+                    <FilePlus2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+
+                    {/* Este texto mostra a ação de limpar o fluxo atual. */}
+                    <span className="min-w-0 break-words">Novo currículo</span>
                   </button>
 
                   {/* Este componente baixa o PDF usando o template selecionado. */}
