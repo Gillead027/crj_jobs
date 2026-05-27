@@ -20,10 +20,12 @@ O objetivo e simples: o jovem escreve um relato sobre si, e a tela transforma es
 - `src/app/page.tsx`: contem o fluxo em duas etapas, da escrita do relato ate a pre-visualizacao.
 - `src/app/globals.css`: guarda estilos globais e importa as camadas do Tailwind CSS.
 - `src/app/api/gerar-curriculo/route.ts`: cria a rota de API que envia o relato para a IA e devolve JSON estruturado.
+- `src/lib/gemini-resume.ts`: concentra a integracao com Gemini, o prompt, o schema JSON e a limpeza da resposta.
 - `src/components/HeroSection.tsx`: contem a abertura moderna da pagina inicial.
 - `src/components/ResumeStoryForm.tsx`: contem o formulario onde o jovem escreve o relato.
 - `src/components/TemplateCarousel.tsx`: contem a galeria de templates do curriculo.
 - `src/components/ResumePreview.tsx`: escolhe qual template visual deve aparecer na pre-visualizacao.
+- `src/components/ResumeEditor.tsx`: contem os campos para editar o curriculo gerado antes do PDF.
 - `src/components/ElegantResumeTemplate.tsx`: contem o template Classico Elegante.
 - `src/components/ModernResumeTemplate.tsx`: contem o template Moderno Profissional.
 - `src/components/YoungApprenticeTemplate.tsx`: contem o template Jovem Aprendiz.
@@ -42,13 +44,13 @@ npm run dev
 
 Depois abra `http://localhost:3000` no navegador.
 
-## Como configurar a IA
+## Como configurar a IA Gemini
 
-Crie um arquivo `.env.local` com a chave da OpenAI:
+Crie um arquivo `.env.local` com a chave da Gemini API:
 
 ```bash
-OPENAI_API_KEY=sua_chave_aqui
-OPENAI_MODEL=gpt-4o-mini
+GEMINI_API_KEY=sua_chave_aqui
+GEMINI_MODEL=gemini-3.5-flash
 ```
 
 O arquivo `.env.example` mostra quais variaveis o projeto espera.
@@ -60,13 +62,13 @@ Na Vercel, configure as variaveis em `Project Settings` > `Environment Variables
 Use estas variaveis:
 
 ```bash
-OPENAI_API_KEY=sua_chave_da_openai
-OPENAI_MODEL=gpt-4o-mini
+GEMINI_API_KEY=sua_chave_da_gemini
+GEMINI_MODEL=gemini-3.5-flash
 ```
 
 O arquivo `.env.local` deve existir apenas no computador local. Ele esta no `.gitignore`, entao nao deve ser enviado para o repositorio.
 
-A chave da OpenAI nao fica escrita no codigo. A rota de API le `process.env.OPENAI_API_KEY` no servidor, o que evita expor a chave no navegador.
+A chave da Gemini API nao fica escrita no codigo. A rota de API le `process.env.GEMINI_API_KEY` no servidor, o que evita expor a chave no navegador.
 
 Antes de publicar, rode:
 
@@ -82,7 +84,9 @@ Se esse comando passar, o projeto esta pronto para o build de producao da Vercel
 2. Escolha um modelo visual no carrossel.
 3. Clique em `Gerar currículo`.
 4. Veja a pre-visualizacao.
-5. Clique em `Baixar currículo em PDF`.
+5. Clique em `Editar currículo` se quiser ajustar nome, contato, objetivo, experiencias, habilidades, formacao, cursos ou informacoes adicionais.
+6. Clique em `Salvar alterações` para atualizar a pre-visualizacao e o PDF.
+7. Clique em `Baixar currículo em PDF`.
 
 ## Campos do curriculo
 

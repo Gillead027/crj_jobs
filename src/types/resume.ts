@@ -125,6 +125,15 @@ export type ResumePreviewProps = {
   templateId: ResumeTemplateId;
 };
 
+// Este tipo organiza as propriedades do editor aberto depois que o currículo é gerado.
+export type ResumeEditorProps = {
+  // Este campo traz o currículo atual para preencher os campos editáveis.
+  resume: ResumeData;
+
+  // Esta função salva as alterações no estado principal usado pela pré-visualização e pelo PDF.
+  onSave: (nextResume: ResumeData) => void;
+};
+
 // Este tipo organiza as propriedades que o botão de PDF precisa receber.
 export type DownloadPdfButtonProps = {
   // Este campo guarda os dados que serão colocados dentro do PDF.

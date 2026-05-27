@@ -10,30 +10,30 @@ import { FileText, Sparkles } from "lucide-react";
 export function HeroSection() {
   // Este retorno monta uma abertura moderna e responsiva para a primeira etapa.
   return (
-    <section className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <section className="grid w-full max-w-full items-center gap-8 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
       {/* Este bloco animado contém o texto principal da página inicial. */}
       <motion.div
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, ease: "easeOut" }}
-        className="max-w-3xl"
+        className="min-w-0 max-w-3xl"
       >
         {/* Esta etiqueta mostra que o produto pertence ao CRJ. */}
-        <p className="inline-flex items-center gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm font-semibold text-teal-800 shadow-sm ring-1 ring-teal-100">
+        <p className="inline-flex max-w-full items-center gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm font-semibold text-teal-800 shadow-sm ring-1 ring-teal-100">
           {/* Este ícone reforça a ideia de criação assistida. */}
-          <Sparkles className="h-4 w-4" aria-hidden="true" />
+          <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
 
           {/* Este texto identifica a ferramenta. */}
-          Ferramenta CRJ para primeiro currículo
+          <span className="min-w-0 break-words">Ferramenta CRJ para primeiro currículo</span>
         </p>
 
         {/* Este título chama atenção para a transformação do relato em currículo. */}
-        <h1 className="mt-5 max-w-2xl text-4xl font-bold leading-tight text-slate-950 sm:text-5xl">
+        <h1 className="mt-5 max-w-2xl break-words text-3xl font-bold leading-tight text-slate-950 sm:text-5xl">
           Transforme sua história em um currículo profissional.
         </h1>
 
         {/* Este texto explica a proposta em linguagem simples para jovens do CRJ. */}
-        <p className="mt-4 max-w-2xl text-base leading-8 text-slate-700 sm:text-lg">
+        <p className="mt-4 max-w-2xl break-words text-base leading-8 text-slate-700 sm:text-lg">
           Escreva do seu jeito: quem você é, o que já fez, o que sabe e qual
           oportunidade busca. O Gerador de Currículo CRJ organiza tudo em um
           modelo bonito, profissional e pronto para baixar.

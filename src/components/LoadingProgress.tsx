@@ -75,7 +75,7 @@ export function LoadingProgress({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className={`mt-4 rounded-lg border p-4 shadow-sm ${
+      className={`mt-4 w-full max-w-full overflow-hidden rounded-lg border p-4 shadow-sm ${
         isError
           ? "border-red-200 bg-red-50 text-red-800"
           : "border-teal-100 bg-teal-50/80 text-slate-800"
@@ -84,12 +84,12 @@ export function LoadingProgress({
       aria-live="polite"
     >
       {/* Este bloco organiza ícone, mensagem e porcentagem em uma linha responsiva. */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Este bloco mostra o ícone e a mensagem atual do carregamento. */}
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           {/* Este fundo destaca o ícone sem deixar o carregamento pesado. */}
           <div
-            className={`rounded-lg p-2 ${
+            className={`shrink-0 rounded-lg p-2 ${
               isError ? "bg-red-100 text-red-700" : "bg-white text-teal-700"
             }`}
           >
@@ -104,11 +104,11 @@ export function LoadingProgress({
           </div>
 
           {/* Este texto mostra o que o sistema está fazendo naquele momento. */}
-          <p className="text-sm font-bold">{message}</p>
+          <p className="min-w-0 break-words text-sm font-bold">{message}</p>
         </div>
 
         {/* Esta porcentagem ajuda o usuário a perceber que algo está avançando. */}
-        <span className="text-sm font-black tabular-nums">
+        <span className="shrink-0 text-sm font-black tabular-nums">
           {Math.round(safeProgress)}%
         </span>
       </div>
@@ -135,11 +135,11 @@ export function LoadingProgress({
 
       {/* Este texto final mantém a experiência simples, sem explicar detalhes técnicos ao usuário. */}
       {!isError ? (
-        <p className="mt-3 text-xs leading-5 text-slate-600">
+        <p className="mt-3 break-words text-xs leading-5 text-slate-600">
           Aguarde alguns instantes.
         </p>
       ) : (
-        <p className="mt-3 text-xs leading-5 text-red-700">
+        <p className="mt-3 break-words text-xs leading-5 text-red-700">
           Revise o relato ou tente novamente em instantes.
         </p>
       )}

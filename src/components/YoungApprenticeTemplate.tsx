@@ -20,14 +20,14 @@ function ApprenticeSection({
 }) {
   // Este retorno monta uma seção leve com título bem visível.
   return (
-    <section className="mt-6">
+    <section className="mt-6 min-w-0">
       {/* Este título usa verde para passar energia sem perder profissionalismo. */}
-      <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">
+      <h3 className="break-words text-xs font-bold uppercase tracking-normal text-emerald-700">
         {title}
       </h3>
 
       {/* Este conteúdo fica logo abaixo do título. */}
-      <div className="mt-3 text-sm leading-7 text-slate-700">{children}</div>
+      <div className="mt-3 min-w-0 break-words text-sm leading-7 text-slate-700">{children}</div>
     </section>
   );
 }
@@ -42,12 +42,12 @@ function ApprenticeList({ items, emptyText }: { items: string[]; emptyText: stri
 
   // Este retorno mostra itens em etiquetas leves.
   return (
-    <ul className="flex flex-wrap gap-2">
+    <ul className="flex min-w-0 flex-wrap gap-2">
       {/* Este mapa cria uma etiqueta por item. */}
       {items.map((item) => (
         <li
           key={item}
-          className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-900"
+          className="max-w-full break-words rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-900"
         >
           {/* Este texto mostra o item real do currículo. */}
           {item}
@@ -64,41 +64,41 @@ export function YoungApprenticeTemplate({ resume }: ResumeTemplateProps) {
 
   // Este retorno monta um currículo claro, leve e profissional.
   return (
-    <article className="mx-auto min-h-[920px] max-w-[820px] rounded-lg bg-white p-7 text-slate-900 shadow-2xl shadow-slate-300/50 sm:p-10">
+    <article className="mx-auto min-h-[920px] w-full max-w-[820px] overflow-hidden rounded-lg bg-white p-5 text-slate-900 shadow-2xl shadow-slate-300/50 sm:p-10">
       {/* Este cabeçalho usa gradiente discreto para deixar o template mais jovem. */}
-      <header className="rounded-lg bg-gradient-to-br from-emerald-100 via-cyan-50 to-blue-100 p-7">
+      <header className="min-w-0 rounded-lg bg-gradient-to-br from-emerald-100 via-cyan-50 to-blue-100 p-5 sm:p-7">
         {/* Este nome aparece grande no topo. */}
-        <h2 className="text-4xl font-bold leading-tight tracking-normal text-slate-950 sm:text-5xl">
+        <h2 className="break-words text-3xl font-bold leading-tight tracking-normal text-slate-950 sm:text-5xl">
           {displayedName}
         </h2>
 
         {/* Este objetivo aparece abaixo em itálico. */}
-        <p className="mt-3 text-lg italic text-emerald-800">
+        <p className="mt-3 break-words text-base italic text-emerald-800 sm:text-lg">
           {resume.professionalObjective || "Objetivo profissional a preencher"}
         </p>
       </header>
 
       {/* Este bloco divide o currículo em duas colunas. */}
-      <div className="grid gap-8 pt-8 md:grid-cols-[0.76fr_1.24fr]">
+      <div className="grid min-w-0 gap-8 pt-8 md:grid-cols-[minmax(0,0.76fr)_minmax(0,1.24fr)]">
         {/* Esta coluna menor traz informações rápidas. */}
-        <aside>
+        <aside className="min-w-0">
           <ApprenticeSection title="Contato">
             <dl className="space-y-3">
               <div>
                 <dt className="font-bold text-slate-950">Telefone</dt>
-                <dd>{resume.phone || <ApprenticeEmpty>A preencher</ApprenticeEmpty>}</dd>
+                <dd className="break-words">{resume.phone || <ApprenticeEmpty>A preencher</ApprenticeEmpty>}</dd>
               </div>
               <div>
                 <dt className="font-bold text-slate-950">E-mail</dt>
-                <dd>{resume.email || <ApprenticeEmpty>A preencher</ApprenticeEmpty>}</dd>
+                <dd className="break-words">{resume.email || <ApprenticeEmpty>A preencher</ApprenticeEmpty>}</dd>
               </div>
               <div>
                 <dt className="font-bold text-slate-950">Cidade</dt>
-                <dd>{resume.city || <ApprenticeEmpty>A preencher</ApprenticeEmpty>}</dd>
+                <dd className="break-words">{resume.city || <ApprenticeEmpty>A preencher</ApprenticeEmpty>}</dd>
               </div>
               <div>
                 <dt className="font-bold text-slate-950">Idade</dt>
-                <dd>{resume.age || <ApprenticeEmpty>A preencher</ApprenticeEmpty>}</dd>
+                <dd className="break-words">{resume.age || <ApprenticeEmpty>A preencher</ApprenticeEmpty>}</dd>
               </div>
             </dl>
           </ApprenticeSection>
@@ -115,7 +115,7 @@ export function YoungApprenticeTemplate({ resume }: ResumeTemplateProps) {
         </aside>
 
         {/* Esta coluna maior apresenta experiências e formação sem resumo automático. */}
-        <main>
+        <main className="min-w-0">
           {/* Esta seção vem primeiro para valorizar práticas e experiências informais. */}
           <ApprenticeSection title="Experiências">
             <ApprenticeList

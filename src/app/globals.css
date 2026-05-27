@@ -9,6 +9,16 @@
 /* Esta linha carrega as classes utilitarias, como cores, margens e tamanhos. */
 @tailwind utilities;
 
+/* Este bloco impede rolagem horizontal causada por textos longos ou cards em telas pequenas. */
+html,
+body {
+  /* Esta largura fixa o documento na largura da janela do navegador. */
+  width: 100%;
+
+  /* Esta regra evita que qualquer elemento vaze para fora da tela no celular. */
+  overflow-x: hidden;
+}
+
 /* Este bloco define um fundo suave e uma cor padrao para todos os textos. */
 body {
   /* Esta cor cria contraste bom sem usar branco puro. */

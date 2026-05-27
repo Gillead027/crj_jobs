@@ -3,8 +3,8 @@
 // Este arquivo monta as duas etapas do Gerador de Currículo CRJ.
 import { AnimatePresence, motion } from "framer-motion";
 
-// Este import traz o ícone usado no botão de voltar.
-import { ArrowLeft } from "lucide-react";
+// Este import traz os ícones usados nos botões de voltar e editar currículo.
+import { ArrowLeft, Pencil } from "lucide-react";
 
 // Este import permite guardar estados da tela, do currículo e do carregamento da IA.
 import { useState } from "react";
@@ -17,6 +17,9 @@ import { HeroSection } from "@/components/HeroSection";
 
 // Este import traz o componente que mostra a pré-visualização do currículo.
 import { ResumePreview } from "@/components/ResumePreview";
+
+// Este import traz o editor aberto depois que o currículo foi gerado.
+import { ResumeEditor } from "@/components/ResumeEditor";
 
 // Este import traz o formulário onde o jovem escreve sua história.
 import { ResumeStoryForm } from "@/components/ResumeStoryForm";
@@ -56,6 +59,10 @@ const waitingLoadingLimit = 90;
 
 // Esta constante define o tempo para mostrar a barra em 100% antes de abrir a pré-visualização.
 const successPreviewDelay = 650;
+
+// Esta constante guarda a mensagem padrão quando a IA falha sem devolver um motivo amigável.
+const genericAiErrorMessage =
+  "Não foi possível gerar com IA agora. Tente novamente em instantes.";
 
 // Esta função converte o JSON em português vindo da IA para o formato usado pelos componentes.
 function mapAiResumeToResumeData(curriculo: AiResumeJson): ResumeData {
@@ -116,6 +123,15 @@ function wait(milliseconds: number) {
   });
 }
 
+// Esta função escolhe uma mensagem segura para mostrar quando a rota de IA falhar.
+function getFriendlyAiErrorMessage(error: unknown) {
+  // Esta constante usa a mensagem vinda da API, como a falta de GEMINI_API_KEY no servidor.
+  const errorMessage = error instanceof Error ? error.message.trim() : "";
+
+  // Este retorno evita mostrar texto vazio e mantém a interface com orientação amigável.
+  return errorMessage || genericAiErrorMessage;
+}
+
 // Esta função envia o relato para a rota segura do Next.js, que roda no servidor.
 async function requestAiResume(story: string) {
   // Esta chamada usa caminho relativo para funcionar tanto localmente quanto na Vercel.
@@ -126,7 +142,7 @@ async function requestAiResume(story: string) {
     // Este cabeçalho informa que o corpo da requisição é JSON.
     headers: { "Content-Type": "application/json" },
 
-    // Este corpo envia apenas o relato; a chave da OpenAI fica protegida no servidor.
+    // Este corpo envia apenas o relato; a chave da Gemini API fica protegida no servidor.
     body: JSON.stringify({ relato: story }),
   });
 
@@ -183,6 +199,9 @@ export default function Home() {
 
   // Este estado guarda uma mensagem amigável quando a IA falha.
   const [loadingErrorMessage, setLoadingErrorMessage] = useState("");
+
+  // Este estado controla se os campos editáveis do currículo gerado estão abertos.
+  const [isEditingResume, setIsEditingResume] = useState(false);
 
   // Esta constante busca nome e descrição do template selecionado.
   const selectedTemplate = getResumeTemplate(selectedTemplateId);
@@ -261,7 +280,7 @@ export default function Home() {
 
     // Este bloco tenta usar a IA e só avança para a pré-visualização quando houver sucesso.
     try {
-      // Esta linha chama a API interna, que usa OPENAI_API_KEY apenas no servidor.
+      // Esta linha chama a API interna, que usa GEMINI_API_KEY apenas no servidor.
       const aiResume = await requestAiResume(story.trim());
 
       // Esta linha para a simulação porque a IA já respondeu.
@@ -269,6 +288,9 @@ export default function Home() {
 
       // Esta linha salva o currículo profissional devolvido pela IA.
       setResume(aiResume);
+
+      // Esta linha fecha o editor caso o usuário gere uma nova versão do currículo.
+      setIsEditingResume(false);
 
       // Esta linha coloca a barra no estado de sucesso para mudar mensagem e ícone.
       setLoadingStatus("success");
@@ -301,9 +323,7 @@ export default function Home() {
       setLoadingStatus("error");
 
       // Esta linha mostra uma mensagem curta, amigável e sem detalhe técnico.
-      setLoadingErrorMessage(
-        "Não foi possível gerar com IA agora. Tente novamente em instantes.",
-      );
+      setLoadingErrorMessage(getFriendlyAiErrorMessage(error));
     }
   }
 
@@ -323,13 +343,34 @@ export default function Home() {
 
     // Esta linha limpa qualquer erro antigo ao voltar para edição.
     setLoadingErrorMessage("");
+
+    // Esta linha fecha os campos do currículo porque o usuário voltou para editar o relato.
+    setIsEditingResume(false);
+  }
+
+  // Esta função abre ou fecha o editor do currículo gerado.
+  function handleToggleResumeEditor() {
+    // Esta linha alterna o painel de edição sem alterar a pré-visualização ainda.
+    setIsEditingResume((currentValue) => !currentValue);
+  }
+
+  // Esta função salva alterações manuais no currículo já gerado.
+  function handleSaveResumeChanges(nextResume: ResumeData) {
+    // Esta linha atualiza o mesmo estado usado pela pré-visualização e pelo botão de PDF.
+    setResume(nextResume);
+
+    // Esta linha fecha o editor depois de aplicar os dados editados.
+    setIsEditingResume(false);
+
+    // Esta mensagem confirma que o PDF usará as informações atualizadas.
+    setMessage("Alterações salvas. A pré-visualização e o PDF foram atualizados.");
   }
 
   // Este retorno monta o fundo moderno e controla qual etapa aparece.
   return (
-    <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#dff6ef_0,#f8fafc_34%,#f6f0ea_100%)] px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
+    <main className="min-h-screen w-full max-w-full overflow-hidden bg-[radial-gradient(circle_at_top_left,#dff6ef_0,#f8fafc_34%,#f6f0ea_100%)] px-4 py-6 text-slate-900 sm:px-6 sm:py-8 lg:px-8">
       {/* Este bloco limita a largura para manter a leitura confortável. */}
-      <div className="mx-auto w-full max-w-7xl">
+      <div className="mx-auto w-full max-w-7xl overflow-hidden">
         {/* AnimatePresence permite animar a troca entre as duas etapas. */}
         <AnimatePresence mode="wait">
           {/* Esta condição mostra a primeira página do fluxo. */}
@@ -340,13 +381,13 @@ export default function Home() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 18 }}
               transition={{ duration: 0.35, ease: "easeOut" }}
-              className="space-y-8"
+              className="w-full max-w-full space-y-8 overflow-hidden"
             >
               {/* Esta seção apresenta o projeto de forma moderna. */}
               <HeroSection />
 
               {/* Este bloco organiza formulário e galeria de templates. */}
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
+              <div className="grid w-full max-w-full min-w-0 gap-6 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,390px)]">
                 {/* Este componente recebe o relato do jovem. */}
                 <ResumeStoryForm
                   story={story}
@@ -374,41 +415,55 @@ export default function Home() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -18 }}
               transition={{ duration: 0.35, ease: "easeOut" }}
-              className="space-y-6"
+              className="w-full max-w-full space-y-6 overflow-hidden"
             >
               {/* Este cabeçalho da segunda etapa mostra ações de baixar e editar. */}
-              <section className="flex flex-col gap-4 rounded-lg border border-white/70 bg-white/85 p-4 shadow-lg shadow-slate-200/60 backdrop-blur md:flex-row md:items-center md:justify-between">
+              <section className="flex w-full max-w-full flex-col gap-4 overflow-hidden rounded-lg border border-white/70 bg-white/85 p-4 shadow-lg shadow-slate-200/60 backdrop-blur md:flex-row md:items-center md:justify-between">
                 {/* Este bloco mostra o template selecionado. */}
-                <div>
+                <div className="min-w-0">
                   {/* Este texto pequeno indica que o currículo está pronto para revisão. */}
                   <p className="text-sm font-semibold text-teal-700">
                     Pré-visualização gerada
                   </p>
 
                   {/* Este título mostra o nome do template escolhido. */}
-                  <h1 className="mt-1 text-2xl font-bold text-slate-950">
+                  <h1 className="mt-1 break-words text-xl font-bold text-slate-950 sm:text-2xl">
                     Modelo: {selectedTemplate.name}
                   </h1>
 
                   {/* Este texto reforça que o jovem pode voltar para editar. */}
-                  <p className="mt-1 text-sm text-slate-600">
-                    Revise o currículo, baixe em PDF ou volte para melhorar o relato.
+                  <p className="mt-1 break-words text-sm text-slate-600">
+                    Revise o currículo, edite os campos, baixe em PDF ou volte para melhorar o relato.
                   </p>
                 </div>
 
                 {/* Este bloco agrupa os botões da etapa de pré-visualização. */}
-                <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex w-full max-w-full flex-col gap-3 sm:w-auto sm:flex-row">
                   {/* Este botão volta para a primeira etapa sem apagar o texto. */}
                   <button
                     type="button"
                     onClick={handleBackToEdit}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm transition hover:bg-slate-50 focus-visible:outline-slate-700"
+                    className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm transition hover:bg-slate-50 focus-visible:outline-slate-700 sm:w-auto"
                   >
                     {/* Este ícone deixa claro que o usuário vai voltar. */}
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
 
                     {/* Este texto mostra a ação de editar novamente. */}
-                    Voltar e editar relato
+                    <span className="min-w-0 break-words">Voltar e editar relato</span>
+                  </button>
+
+                  {/* Este botão abre os campos editáveis do currículo já gerado. */}
+                  <button
+                    type="button"
+                    onClick={handleToggleResumeEditor}
+                    className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-teal-600 bg-teal-50 px-4 py-3 text-sm font-bold text-teal-800 transition hover:bg-teal-100 focus-visible:outline-teal-700 sm:w-auto"
+                    aria-expanded={isEditingResume}
+                  >
+                    {/* Este ícone indica que a ação abre edição direta do currículo. */}
+                    <Pencil className="h-4 w-4 shrink-0" aria-hidden="true" />
+
+                    {/* Este texto atende ao pedido de criar o botão Editar currículo. */}
+                    <span className="min-w-0 break-words">Editar currículo</span>
                   </button>
 
                   {/* Este componente baixa o PDF usando o template selecionado. */}
@@ -422,9 +477,14 @@ export default function Home() {
               </section>
 
               {/* Esta mensagem mostra o status de download ou orientação. */}
-              <p className="min-h-6 text-sm font-medium text-slate-700" aria-live="polite">
+              <p className="min-h-6 break-words text-sm font-medium text-slate-700" aria-live="polite">
                 {message}
               </p>
+
+              {/* Esta condição mostra o editor somente quando o usuário pede para ajustar o currículo. */}
+              {isEditingResume ? (
+                <ResumeEditor resume={resume} onSave={handleSaveResumeChanges} />
+              ) : null}
 
               {/* Este bloco permite trocar o template também na tela de pré-visualização. */}
               <TemplateCarousel

@@ -62,24 +62,24 @@ export function ResumeStoryForm({
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.18, duration: 0.5, ease: "easeOut" }}
-      className="rounded-lg border border-white/70 bg-white/90 p-5 shadow-xl shadow-slate-200/60 backdrop-blur"
+      className="w-full max-w-full overflow-hidden rounded-lg border border-white/70 bg-white/90 p-4 shadow-xl shadow-slate-200/60 backdrop-blur sm:p-5"
       onSubmit={handleSubmit}
     >
       {/* Este cabeçalho explica a área de escrita do relato. */}
-      <div className="flex items-start gap-3">
+      <div className="flex max-w-full items-start gap-3 overflow-hidden">
         {/* Este bloco cria um fundo suave para o ícone. */}
-        <div className="rounded-lg bg-teal-100 p-2 text-teal-700">
+        <div className="shrink-0 rounded-lg bg-teal-100 p-2 text-teal-700">
           {/* Este ícone mostra que o jovem vai escrever sua história. */}
           <PenLine className="h-5 w-5" aria-hidden="true" />
         </div>
 
         {/* Este bloco guarda o título e o texto de ajuda do formulário. */}
-        <div>
+        <div className="min-w-0">
           {/* Este título identifica a etapa de escrita. */}
-          <h2 className="text-lg font-bold text-slate-950">Conte sua história</h2>
+          <h2 className="break-words text-lg font-bold text-slate-950">Conte sua história</h2>
 
           {/* Este texto orienta sem deixar a tela com cara de formulário burocrático. */}
-          <p className="mt-1 text-sm leading-6 text-slate-600">
+          <p className="mt-1 break-words text-sm leading-6 text-slate-600">
             Fale sobre você, sua cidade, estudos, cursos, habilidades e experiências,
             mesmo que sejam informais.
           </p>
@@ -87,7 +87,7 @@ export function ResumeStoryForm({
       </div>
 
       {/* Este bloco guarda o rótulo e a área grande de texto. */}
-      <div className="mt-5">
+      <div className="mt-5 w-full max-w-full overflow-hidden">
         {/* Este rótulo torna o campo acessível para leitores de tela. */}
         <label htmlFor="story" className="block text-sm font-semibold text-slate-800">
           Relato do jovem
@@ -101,7 +101,7 @@ export function ResumeStoryForm({
           value={story}
           onChange={handleStoryChange}
           disabled={isGenerating}
-          className="mt-2 min-h-72 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-base leading-7 text-slate-900 shadow-inner transition placeholder:text-slate-400 focus:border-teal-600 focus:bg-white focus:outline-none"
+          className="mt-2 block min-h-72 w-full max-w-full resize-y overflow-hidden rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-900 shadow-inner transition placeholder:text-slate-400 break-words focus:border-teal-600 focus:bg-white focus:outline-none sm:text-base"
           placeholder="Exemplo: Meu nome é Ana, tenho 17 anos, moro em Recife, busco meu primeiro emprego, estudo o ensino médio, ajudo minha mãe no salão e fiz curso de informática..."
         />
       </div>
@@ -116,14 +116,14 @@ export function ResumeStoryForm({
         />
       ) : (
         // Esta área mostra mensagens comuns quando a barra não precisa aparecer.
-        <p className="mt-3 min-h-6 text-sm font-medium text-slate-700" aria-live="polite">
+        <p className="mt-3 min-h-6 break-words text-sm font-medium text-slate-700" aria-live="polite">
           {/* Este texto muda quando o usuário tenta gerar o currículo. */}
           {message}
         </p>
       )}
 
       {/* Este bloco organiza o botão principal no fim do formulário. */}
-      <div className="mt-5 flex justify-end">
+      <div className="mt-5 flex w-full max-w-full justify-end">
         {/* Este botão gera o currículo e abre a tela de pré-visualização. */}
         <button
           type="submit"
@@ -134,7 +134,7 @@ export function ResumeStoryForm({
           {isGenerating ? "Gerando currículo..." : "Gerar currículo"}
 
           {/* Este ícone indica avanço para a próxima etapa. */}
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
         </button>
       </div>
     </motion.form>

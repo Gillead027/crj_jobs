@@ -32,19 +32,19 @@ export function TemplateCarousel({
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.26, duration: 0.5, ease: "easeOut" }}
-      className="rounded-lg border border-white/70 bg-white/80 p-5 shadow-lg shadow-slate-200/50 backdrop-blur"
+      className="w-full max-w-full overflow-hidden rounded-lg border border-white/70 bg-white/80 p-4 shadow-lg shadow-slate-200/50 backdrop-blur sm:p-5"
     >
       {/* Este cabeçalho explica que o usuário pode escolher o modelo visual. */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         {/* Este título identifica a galeria de templates. */}
-        <h2 className="text-lg font-bold text-slate-950">Escolha o modelo</h2>
+        <h2 className="break-words text-lg font-bold text-slate-950">Escolha o modelo</h2>
 
         {/* Este texto curto explica a interação sem ocupar muito espaço. */}
-        <p className="text-sm text-slate-600">Clique em um card para aplicar no currículo.</p>
+        <p className="break-words text-sm text-slate-600">Clique em um card para aplicar no currículo.</p>
       </div>
 
       {/* Este bloco funciona como carrossel horizontal em telas menores. */}
-      <div className="mt-4 flex snap-x gap-3 overflow-x-auto pb-2">
+      <div className="-mx-1 mt-4 flex max-w-full snap-x gap-3 overflow-x-auto px-1 pb-2">
         {/* Este mapa cria um card para cada template disponível. */}
         {resumeTemplates.map((template) => {
           // Esta constante verifica se este card é o selecionado.
@@ -56,7 +56,7 @@ export function TemplateCarousel({
               key={template.id}
               type="button"
               onClick={() => onSelectTemplate(template.id)}
-              className={`min-w-[230px] snap-start rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
+              className={`w-[82vw] max-w-[230px] shrink-0 snap-start overflow-hidden rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md sm:w-[230px] ${
                 isSelected
                   ? "border-slate-950 bg-white shadow-md"
                   : "border-slate-200 bg-white/80"
@@ -87,20 +87,20 @@ export function TemplateCarousel({
               </div>
 
               {/* Este bloco mostra o nome do template e o indicador de seleção. */}
-              <div className="mt-3 flex items-start justify-between gap-3">
-                <div>
+              <div className="mt-3 flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
                   {/* Este texto mostra o nome do template. */}
-                  <p className="font-bold text-slate-950">{template.name}</p>
+                  <p className="break-words font-bold text-slate-950">{template.name}</p>
 
                   {/* Este texto explica em uma frase o estilo do template. */}
-                  <p className="mt-1 text-sm leading-5 text-slate-600">
+                  <p className="mt-1 break-words text-sm leading-5 text-slate-600">
                     {template.description}
                   </p>
                 </div>
 
                 {/* Esta condição mostra um check quando o template está selecionado. */}
                 {isSelected ? (
-                  <span className="rounded-full bg-slate-950 p-1 text-white">
+                  <span className="shrink-0 rounded-full bg-slate-950 p-1 text-white">
                     <Check className="h-4 w-4" aria-hidden="true" />
                   </span>
                 ) : null}

@@ -55,13 +55,13 @@ export function DownloadPdfButton({
     <button
       type="button"
       onClick={handleDownload}
-      className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100 focus-visible:outline-emerald-700 sm:w-auto"
+      className="inline-flex min-h-12 w-full max-w-full items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-emerald-50 px-5 py-3 text-center text-sm font-bold text-emerald-800 transition hover:bg-emerald-100 focus-visible:outline-emerald-700 sm:w-auto"
     >
       {/* Este ícone indica visualmente que o botão faz download. */}
-      <Download className="h-4 w-4" aria-hidden="true" />
+      <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
 
       {/* Este texto deixa a ação clara para todos os usuários. */}
-      Baixar currículo em PDF
+      <span className="min-w-0 break-words">Baixar currículo em PDF</span>
     </button>
   );
 }
