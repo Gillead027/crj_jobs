@@ -2,6 +2,7 @@
 // A rota agora usa Gemini no servidor, mantendo a chave fora do navegador.
 import {
   GeminiConfigurationError,
+  GeminiModelUnavailableError,
   generateResumeWithGemini,
   hasGeminiApiKey,
 } from "@/lib/gemini-resume";
@@ -213,6 +214,15 @@ export async function POST(request: Request) {
       return createErrorResponse(
         500,
         "O gerador de IA ainda não está configurado. Configure GEMINI_API_KEY no servidor.",
+      );
+    }
+
+    // Esta condicao trata erro 400 da Gemini quando o modelo configurado nao existe ou nao esta disponivel.
+    if (error instanceof GeminiModelUnavailableError) {
+      // Esta resposta usa linguagem simples para a equipe corrigir a configuracao da IA.
+      return createErrorResponse(
+        500,
+        "O modelo de IA configurado não está disponível. Avise a equipe responsável.",
       );
     }
 

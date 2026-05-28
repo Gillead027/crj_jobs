@@ -65,10 +65,12 @@ Crie um arquivo `.env.local` com a chave da Gemini API:
 
 ```bash
 GEMINI_API_KEY=sua_chave_aqui
-GEMINI_MODEL=gemini-3.5-flash
 ```
 
 O arquivo `.env.example` mostra quais variaveis o projeto espera.
+
+O modelo Gemini usado pela integracao fica fixo no codigo como `gemini-2.5-flash`.
+Esse modelo precisa existir e estar disponivel na Gemini API.
 
 ## Como preparar o deploy na Vercel
 
@@ -78,7 +80,6 @@ Use estas variaveis:
 
 ```bash
 GEMINI_API_KEY=sua_chave_da_gemini
-GEMINI_MODEL=gemini-3.5-flash
 ```
 
 O arquivo `.env.local` deve existir apenas no computador local. Ele esta no `.gitignore`, entao nao deve ser enviado para o repositorio.

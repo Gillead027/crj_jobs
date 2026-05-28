@@ -9,8 +9,8 @@ import type {
 // Esta constante guarda o endpoint REST oficial usado para chamar modelos Gemini pelo servidor.
 const geminiApiBaseUrl = "https://generativelanguage.googleapis.com/v1beta";
 
-// Este modelo padrão é usado quando GEMINI_MODEL não estiver configurado no ambiente.
-const defaultGeminiModel = "gemini-3.5-flash";
+// Este modelo precisa existir e estar disponivel na Gemini API usada pelo projeto.
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 // Esta lista mantém a ordem dos campos esperados no JSON final do currículo.
 const resumeFieldOrder = [
@@ -160,6 +160,18 @@ export class GeminiConfigurationError extends Error {
   }
 }
 
+// Este erro especifico sinaliza que o modelo configurado nao foi aceito pela Gemini API.
+export class GeminiModelUnavailableError extends Error {
+  // Este construtor define um nome claro para a rota mostrar a mensagem amigavel correta.
+  constructor(message: string) {
+    // Esta chamada inicializa a classe Error padrao.
+    super(message);
+
+    // Este nome aparece nos logs do servidor quando o modelo nao estiver disponivel.
+    this.name = "GeminiModelUnavailableError";
+  }
+}
+
 // Esta função confirma se a chave do Gemini existe sem expor o valor no navegador.
 export function hasGeminiApiKey() {
   // Esta linha aceita apenas uma chave com texto real, ignorando espaços vazios.
@@ -181,15 +193,9 @@ function getGeminiApiKey() {
   return apiKey;
 }
 
-// Esta função escolhe o modelo Gemini, permitindo troca por variável de ambiente sem mexer no código.
-function getGeminiModel() {
-  // Esta linha usa GEMINI_MODEL se existir, mas mantém um padrão funcional para produção.
-  return process.env.GEMINI_MODEL?.trim() || defaultGeminiModel;
-}
-
 // Esta função monta a URL REST do Gemini para o modelo selecionado.
 function buildGeminiUrl(model: string) {
-  // Esta linha aceita tanto "gemini-..." quanto "models/gemini-..." na variável GEMINI_MODEL.
+  // Esta linha aceita tanto "gemini-..." quanto "models/gemini-..." se o nome do modelo mudar no futuro.
   const modelName = model.replace(/^models\//, "");
 
   // Este retorno usa encodeURIComponent para evitar quebra de URL se o nome do modelo tiver caracteres especiais.
@@ -475,11 +481,8 @@ export async function generateResumeWithGemini(
   // Esta constante pega a chave do Gemini apenas no servidor.
   const apiKey = getGeminiApiKey();
 
-  // Esta constante define o modelo Gemini que será usado nesta chamada.
-  const model = getGeminiModel();
-
   // Esta chamada HTTP usa uma integração direta com Gemini, sem dependência externa de IA.
-  const response = await fetch(buildGeminiUrl(model), {
+  const response = await fetch(buildGeminiUrl(GEMINI_MODEL), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -492,6 +495,14 @@ export async function generateResumeWithGemini(
   if (!response.ok) {
     // Esta constante guarda detalhe técnico apenas para log.
     const geminiError = await readGeminiError(response);
+
+    // Esta condicao trata 400 como modelo/configuracao indisponivel para resposta amigavel.
+    if (response.status === 400) {
+      // Este erro sera convertido pela rota na mensagem pedida para a equipe.
+      throw new GeminiModelUnavailableError(
+        `Modelo Gemini indisponivel (${GEMINI_MODEL}): ${geminiError}`,
+      );
+    }
 
     // Este erro não expõe a chave e será convertido em mensagem amigável pela rota.
     throw new Error(`Falha na Gemini API (${response.status}): ${geminiError}`);
