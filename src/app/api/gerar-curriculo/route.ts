@@ -3,6 +3,7 @@
 import {
   GeminiConfigurationError,
   GeminiInvalidJsonError,
+  GeminiTemporaryUnavailableError,
   generateResumeWithGemini,
   hasGeminiApiKey,
 } from "@/lib/gemini-resume";
@@ -220,6 +221,15 @@ export async function POST(request: Request) {
       return createErrorResponse(
         500,
         "A IA respondeu fora do formato esperado. Tente novamente.",
+      );
+    }
+
+    // Esta condicao trata instabilidade temporaria 503 mesmo depois de retry e fallback.
+    if (error instanceof GeminiTemporaryUnavailableError) {
+      // Esta resposta orienta a aguardar sem expor detalhes tecnicos da API externa.
+      return createErrorResponse(
+        503,
+        "A IA está temporariamente instável. Tente novamente em alguns minutos.",
       );
     }
 

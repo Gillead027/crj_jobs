@@ -9,8 +9,17 @@ import type {
 // Esta constante guarda o endpoint REST oficial usado para chamar modelos Gemini pelo servidor.
 const geminiApiBaseUrl = "https://generativelanguage.googleapis.com/v1beta";
 
-// Este modelo precisa existir e estar disponivel na Gemini API usada pelo projeto.
+// Este modelo principal precisa existir e estar disponivel na Gemini API usada pelo projeto.
 const GEMINI_MODEL = "gemini-2.5-flash";
+
+// Este modelo fallback melhora estabilidade em producao quando o modelo principal fica temporariamente indisponivel.
+const GEMINI_FALLBACK_MODEL = "gemini-2.0-flash";
+
+// Esta constante limita retentativas para reduzir impacto de instabilidade temporaria da API Gemini.
+const maxGeminiAttempts = 3;
+
+// Esta constante define esperas progressivas antes da segunda e terceira tentativa.
+const retryDelaysMs = [1000, 2000] as const;
 
 // Esta lista mantém a ordem dos campos esperados no JSON final do currículo.
 const resumeFieldOrder = [
@@ -158,6 +167,18 @@ export class GeminiInvalidJsonError extends Error {
   }
 }
 
+// Este erro especifico sinaliza instabilidade temporaria da API Gemini depois de todas as tentativas.
+export class GeminiTemporaryUnavailableError extends Error {
+  // Este construtor define um nome claro para a rota exibir uma mensagem amigavel.
+  constructor(message: string) {
+    // Esta chamada inicializa a classe Error padrao.
+    super(message);
+
+    // Este nome aparece internamente quando 503 persiste mesmo com retry e fallback.
+    this.name = "GeminiTemporaryUnavailableError";
+  }
+}
+
 // Esta função confirma se a chave do Gemini existe sem expor o valor no navegador.
 export function hasGeminiApiKey() {
   // Esta linha aceita apenas uma chave com texto real, ignorando espaços vazios.
@@ -298,19 +319,22 @@ async function readGeminiError(response: Response) {
   }
 }
 
-// Esta função resume mensagens técnicas para log sem incluir relato, contato ou currículo.
-function summarizeTechnicalMessage(message: string) {
-  // Esta linha reduz espaços e limita o tamanho para o log ficar seguro e objetivo.
-  return message.replace(/\s+/g, " ").trim().slice(0, 240);
-}
-
-// Esta função registra apenas status, mensagem técnica resumida e modelo usado.
-function logGeminiHttpError(status: number, technicalMessage: string) {
-  // Este log evita dados pessoais e ajuda a diagnosticar erro 400/500 da Gemini na Vercel.
+// Esta funcao registra apenas status, modelo usado e tentativa, sem relato, contato, email ou curriculo.
+function logGeminiHttpError(status: number, model: string, attempt: number) {
+  // Este log seguro ajuda diagnostico em producao sem expor dados pessoais.
   console.error({
     status,
-    message: summarizeTechnicalMessage(technicalMessage),
-    model: GEMINI_MODEL,
+    model,
+    attempt,
+  });
+}
+
+// Esta funcao espera entre tentativas para dar tempo de a instabilidade temporaria da API passar.
+function wait(milliseconds: number) {
+  // Este retorno cria uma pausa controlada antes de repetir uma chamada com erro 503.
+  return new Promise((resolve) => {
+    // Esta linha agenda a proxima tentativa sem bloquear o servidor.
+    setTimeout(resolve, milliseconds);
   });
 }
 
@@ -475,6 +499,70 @@ function cleanAiResume(curriculo: AiResumeJson): AiResumeJson {
   };
 }
 
+// Esta funcao chama a Gemini com retry e fallback para reduzir falhas por instabilidade temporaria 503.
+async function fetchGeminiWithRetryAndFallback(
+  // Este parametro traz a chave usada apenas no servidor.
+  apiKey: string,
+
+  // Este parametro traz o relato do jovem para montar o prompt.
+  story: string,
+
+  // Este parametro traz modo primeiro emprego e respostas opcionais.
+  context: ResumeGenerationContext,
+) {
+  // Esta constante monta o corpo uma vez para manter as tentativas iguais e sem schema complexo.
+  const requestBody = JSON.stringify(buildGeminiRequestBody(story, context));
+
+  // Este laco tenta ate 3 vezes no total porque 503 costuma ser instabilidade temporaria da API.
+  for (let attempt = 1; attempt <= maxGeminiAttempts; attempt += 1) {
+    // Esta constante usa o modelo principal primeiro e o fallback nas repeticoes apos 503.
+    const model = attempt === 1 ? GEMINI_MODEL : GEMINI_FALLBACK_MODEL;
+
+    // Esta chamada usa somente texto, modelo e generationConfig simples.
+    const response = await fetch(buildGeminiUrl(model), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: requestBody,
+    });
+
+    // Esta condicao encerra as tentativas assim que a Gemini responde com sucesso.
+    if (response.ok) {
+      // Este retorno entrega a resposta de sucesso para o parser JSON.
+      return response;
+    }
+
+    // Esta linha consome o erro sem registrar relato, telefone, email ou curriculo.
+    const geminiError = await readGeminiError(response);
+
+    // Esta linha registra apenas status, modelo usado e tentativa.
+    logGeminiHttpError(response.status, model, attempt);
+
+    // Esta condicao nao repete erro 400 porque ele indica requisicao invalida, nao instabilidade temporaria.
+    if (response.status === 400) {
+      // Este erro segue para a mensagem generica da rota sem novas chamadas.
+      throw new Error(`Falha na Gemini API (${response.status}): ${geminiError}`);
+    }
+
+    // Esta condicao tambem evita retry em erros que nao sejam 503 temporario.
+    if (response.status !== 503) {
+      // Este erro segue para tratamento generico, mantendo detalhes fora da interface.
+      throw new Error(`Falha na Gemini API (${response.status}): ${geminiError}`);
+    }
+
+    // Esta condicao aguarda 1s antes da segunda tentativa e 2s antes da terceira.
+    if (attempt < maxGeminiAttempts) {
+      // Esta espera melhora estabilidade em producao sem insistir em excesso na API.
+      await wait(retryDelaysMs[attempt - 1]);
+    }
+  }
+
+  // Este erro avisa a rota que todas as tentativas falharam com 503 mesmo usando fallback.
+  throw new GeminiTemporaryUnavailableError("Gemini retornou 503 em todas as tentativas.");
+}
+
 // Esta função principal chama a Gemini API e devolve o currículo validado.
 export async function generateResumeWithGemini(
   story: string,
@@ -483,27 +571,8 @@ export async function generateResumeWithGemini(
   // Esta constante pega a chave do Gemini apenas no servidor.
   const apiKey = getGeminiApiKey();
 
-  // Esta chamada HTTP usa uma integração direta com Gemini, sem dependência externa de IA.
-  const response = await fetch(buildGeminiUrl(GEMINI_MODEL), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey,
-    },
-    body: JSON.stringify(buildGeminiRequestBody(story, context)),
-  });
-
-  // Esta condição transforma falhas HTTP do Gemini em erro controlado no servidor.
-  if (!response.ok) {
-    // Esta constante guarda detalhe técnico apenas para log.
-    const geminiError = await readGeminiError(response);
-
-    // Esta linha registra somente status, mensagem resumida e modelo usado.
-    logGeminiHttpError(response.status, geminiError);
-
-    // Este erro não expõe a chave e será convertido em mensagem amigável pela rota.
-    throw new Error(`Falha na Gemini API (${response.status}): ${geminiError}`);
-  }
+  // Esta chamada usa retry e fallback para melhorar estabilidade em producao contra erro 503.
+  const response = await fetchGeminiWithRetryAndFallback(apiKey, story, context);
 
   // Esta constante lê a resposta de sucesso da Gemini API.
   const data = (await response.json()) as GeminiGenerateContentResponse;
