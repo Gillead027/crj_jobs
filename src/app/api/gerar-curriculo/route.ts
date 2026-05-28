@@ -2,7 +2,7 @@
 // A rota agora usa Gemini no servidor, mantendo a chave fora do navegador.
 import {
   GeminiConfigurationError,
-  GeminiModelUnavailableError,
+  GeminiInvalidJsonError,
   generateResumeWithGemini,
   hasGeminiApiKey,
 } from "@/lib/gemini-resume";
@@ -205,9 +205,6 @@ export async function POST(request: Request) {
     // Esta linha devolve o currículo em JSON organizado para quem chamou a API.
     return Response.json(responseBody);
   } catch (error) {
-    // Esta linha registra apenas um erro técnico genérico para não gravar relato, contato ou currículo em logs.
-    console.error("Erro técnico ao gerar currículo com Gemini.");
-
     // Esta condição trata uma falha de configuração que tenha escapado da checagem inicial.
     if (error instanceof GeminiConfigurationError) {
       // Esta resposta orienta a configurar a variável certa sem expor detalhes sensíveis.
@@ -217,12 +214,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Esta condicao trata erro 400 da Gemini quando o modelo configurado nao existe ou nao esta disponivel.
-    if (error instanceof GeminiModelUnavailableError) {
-      // Esta resposta usa linguagem simples para a equipe corrigir a configuracao da IA.
+    // Esta condicao trata resposta da IA que nao conseguiu virar JSON valido.
+    if (error instanceof GeminiInvalidJsonError) {
+      // Esta resposta orienta o usuario a tentar novamente sem expor o texto gerado pela IA.
       return createErrorResponse(
         500,
-        "O modelo de IA configurado não está disponível. Avise a equipe responsável.",
+        "A IA respondeu fora do formato esperado. Tente novamente.",
       );
     }
 

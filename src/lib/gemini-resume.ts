@@ -27,44 +27,30 @@ const resumeFieldOrder = [
   "informacoesAdicionais",
 ] as const;
 
-// Este schema usa o formato aceito pela Gemini API para forçar uma resposta em JSON estruturado.
-// Ele substitui o schema da integração anterior, mantendo os mesmos campos que a tela já sabe renderizar.
-const geminiResumeSchema = {
-  type: "object",
-  properties: {
-    nome: { type: "string" },
-    idade: { type: "string" },
-    telefone: { type: "string" },
-    email: { type: "string" },
-    cidade: { type: "string" },
-    objetivoProfissional: { type: "string" },
-    formacao: { type: "string" },
-    experiencias: {
-      type: "array",
-      items: { type: "string" },
-    },
-    habilidades: {
-      type: "array",
-      items: { type: "string" },
-    },
-    cursos: {
-      type: "array",
-      items: { type: "string" },
-    },
-    informacoesAdicionais: {
-      type: "array",
-      items: { type: "string" },
-    },
-  },
-  required: resumeFieldOrder,
-  propertyOrdering: resumeFieldOrder,
-} as const;
+// Esta constante descreve o formato JSON esperado sem enviar responseSchema para a Gemini.
+// O schema foi removido da chamada para evitar erro 400 de compatibilidade na API Gemini.
+const expectedJsonFormat = `{
+  "nome": "string",
+  "idade": "string",
+  "telefone": "string",
+  "email": "string",
+  "cidade": "string",
+  "objetivoProfissional": "string",
+  "formacao": "string",
+  "experiencias": ["string"],
+  "habilidades": ["string"],
+  "cursos": ["string"],
+  "informacoesAdicionais": ["string"]
+}`;
 
 // Este prompt explica ao Gemini como transformar o relato sem inventar dados do jovem.
 // Ele também reforça que o currículo não deve ter seção de resumo.
 const systemInstruction = `
 Você transforma relatos simples de jovens em currículos profissionais.
-Responda sempre em JSON válido seguindo exatamente o schema solicitado.
+Responda SOMENTE JSON válido, sem markdown, sem comentários e sem texto antes ou depois.
+Use exatamente estas chaves, nesta ordem: ${resumeFieldOrder.join(", ")}.
+O JSON deve seguir este formato:
+${expectedJsonFormat}
 Use português brasileiro profissional, claro, respeitoso e natural.
 Escreva como um currículo que passaria por uma leitura rápida de RH moderno.
 Nunca invente experiência, curso, formação, cidade, telefone, e-mail, idade ou nome.
@@ -160,15 +146,15 @@ export class GeminiConfigurationError extends Error {
   }
 }
 
-// Este erro especifico sinaliza que o modelo configurado nao foi aceito pela Gemini API.
-export class GeminiModelUnavailableError extends Error {
+// Este erro especifico sinaliza que a IA respondeu texto que nao virou JSON valido.
+export class GeminiInvalidJsonError extends Error {
   // Este construtor define um nome claro para a rota mostrar a mensagem amigavel correta.
   constructor(message: string) {
     // Esta chamada inicializa a classe Error padrao.
     super(message);
 
-    // Este nome aparece nos logs do servidor quando o modelo nao estiver disponivel.
-    this.name = "GeminiModelUnavailableError";
+    // Este nome aparece nos logs do servidor quando a resposta fugir do formato esperado.
+    this.name = "GeminiInvalidJsonError";
   }
 }
 
@@ -279,32 +265,20 @@ Não preencha campos com suposições.
 
 // Esta função monta o corpo da requisição no formato da Gemini API.
 function buildGeminiRequestBody(story: string, context: ResumeGenerationContext) {
-  // Este retorno envia instrução de sistema, relato do jovem e configuração de JSON estruturado.
+  // Este retorno envia apenas prompt e generationConfig simples para evitar erro 400 de compatibilidade.
   return {
-    // Esta instrução fixa substitui a antiga mensagem de sistema da integração anterior.
-    system_instruction: {
-      parts: [{ text: systemInstruction }],
-    },
-
-    // Este conteúdo contém apenas o relato informado pelo jovem.
+    // Este conteúdo contém as instruções e o relato informado pelo jovem em um único prompt.
     contents: [
       {
         role: "user",
-        parts: [{ text: buildUserPrompt(story, context) }],
+        parts: [{ text: `${systemInstruction}\n\n${buildUserPrompt(story, context)}` }],
       },
     ],
 
-    // Esta configuração obriga o Gemini a responder como JSON seguindo o schema do currículo.
+    // Esta configuração simples pede JSON sem enviar responseSchema, tools ou function calling.
     generationConfig: {
       temperature: 0.2,
-      // Este formato segue a API atual de structured outputs do Gemini.
-      responseFormat: {
-        // Este bloco informa que a resposta textual deve ser JSON validado pelo schema.
-        text: {
-          mimeType: "application/json",
-          schema: geminiResumeSchema,
-        },
-      },
+      responseMimeType: "application/json",
     },
   };
 }
@@ -322,6 +296,22 @@ async function readGeminiError(response: Response) {
     // Este fallback cobre erros sem JSON no corpo da resposta.
     return response.statusText;
   }
+}
+
+// Esta função resume mensagens técnicas para log sem incluir relato, contato ou currículo.
+function summarizeTechnicalMessage(message: string) {
+  // Esta linha reduz espaços e limita o tamanho para o log ficar seguro e objetivo.
+  return message.replace(/\s+/g, " ").trim().slice(0, 240);
+}
+
+// Esta função registra apenas status, mensagem técnica resumida e modelo usado.
+function logGeminiHttpError(status: number, technicalMessage: string) {
+  // Este log evita dados pessoais e ajuda a diagnosticar erro 400/500 da Gemini na Vercel.
+  console.error({
+    status,
+    message: summarizeTechnicalMessage(technicalMessage),
+    model: GEMINI_MODEL,
+  });
 }
 
 // Esta função extrai o texto JSON da resposta do Gemini.
@@ -352,6 +342,18 @@ function extractGeminiText(response: GeminiGenerateContentResponse) {
 function stripJsonCodeFence(text: string) {
   // Esta linha remove apenas marcadores externos, preservando o JSON interno.
   return text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+}
+
+// Esta função faz o JSON.parse com tratamento específico para resposta fora do formato.
+function parseGeminiJson(jsonText: string) {
+  // Este bloco separa erro de parse do restante das falhas técnicas.
+  try {
+    // Esta linha transforma o texto JSON em objeto JavaScript.
+    return JSON.parse(jsonText) as unknown;
+  } catch {
+    // Este erro vira uma mensagem amigável na rota, sem registrar o conteúdo gerado.
+    throw new GeminiInvalidJsonError("A Gemini respondeu fora do formato JSON esperado.");
+  }
 }
 
 // Esta função confirma se um valor desconhecido é uma lista de textos.
@@ -496,13 +498,8 @@ export async function generateResumeWithGemini(
     // Esta constante guarda detalhe técnico apenas para log.
     const geminiError = await readGeminiError(response);
 
-    // Esta condicao trata 400 como modelo/configuracao indisponivel para resposta amigavel.
-    if (response.status === 400) {
-      // Este erro sera convertido pela rota na mensagem pedida para a equipe.
-      throw new GeminiModelUnavailableError(
-        `Modelo Gemini indisponivel (${GEMINI_MODEL}): ${geminiError}`,
-      );
-    }
+    // Esta linha registra somente status, mensagem resumida e modelo usado.
+    logGeminiHttpError(response.status, geminiError);
 
     // Este erro não expõe a chave e será convertido em mensagem amigável pela rota.
     throw new Error(`Falha na Gemini API (${response.status}): ${geminiError}`);
@@ -517,13 +514,13 @@ export async function generateResumeWithGemini(
   // Esta constante limpa possível markdown externo antes do JSON.parse.
   const jsonText = stripJsonCodeFence(rawText);
 
-  // Esta constante transforma o texto JSON em objeto JavaScript.
-  const parsedJson: unknown = JSON.parse(jsonText);
+  // Esta constante transforma o texto JSON em objeto JavaScript com erro amigável se falhar.
+  const parsedJson = parseGeminiJson(jsonText);
 
   // Esta condição garante que a resposta ficou no formato estruturado esperado pelo app.
   if (!isAiResumeJson(parsedJson)) {
     // Este erro evita que dados incompletos quebrem a tela ou o PDF.
-    throw new Error("A Gemini API retornou um JSON fora do formato esperado.");
+    throw new GeminiInvalidJsonError("A Gemini API retornou um JSON fora do formato esperado.");
   }
 
   // Este retorno entrega o currículo limpo para a rota responder ao navegador.
