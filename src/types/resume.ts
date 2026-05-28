@@ -129,11 +129,23 @@ export type ResumeSupplementalAnswers = {
   // Este campo guarda ferramentas digitais, como celular, computador, Canva, Word, Excel ou redes sociais.
   digitalSkills: string;
 
-  // Este campo guarda a área de preferência do jovem, como atendimento, administrativo ou tecnologia.
-  preferredArea: string;
+  // Este campo guarda varias areas de interesse escolhidas nos chips.
+  areasInteresse: string[];
 
-  // Este campo guarda bairro, cidade ou referência de localidade informada nas perguntas.
-  location: string;
+  // Este campo guarda a area digitada quando a pessoa escolhe Outro.
+  areaOutro: string;
+
+  // Este campo guarda o estado selecionado no bloco Onde voce mora.
+  estado: string;
+
+  // Este campo guarda a cidade selecionada dentro do estado escolhido.
+  cidade: string;
+
+  // Este campo guarda a cidade digitada quando a pessoa escolhe Outro.
+  cidadeOutro: string;
+
+  // Este campo guarda o bairro digitado livremente.
+  bairro: string;
 
   // Este campo guarda telefone ou e-mail que o jovem quer colocar no currículo.
   contact: string;
@@ -166,9 +178,9 @@ export type ResumeStoryFormProps = {
   supplementalAnswers: ResumeSupplementalAnswers;
 
   // Esta função atualiza uma resposta opcional sem apagar as outras respostas.
-  onSupplementalAnswerChange: (
-    field: keyof ResumeSupplementalAnswers,
-    nextValue: string,
+  onSupplementalAnswerChange: <Field extends keyof ResumeSupplementalAnswers>(
+    field: Field,
+    nextValue: ResumeSupplementalAnswers[Field],
   ) => void;
 
   // Esta função avisa a página quando o jovem clica para gerar o currículo.

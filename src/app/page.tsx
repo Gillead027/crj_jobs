@@ -140,10 +140,22 @@ const emptySupplementalAnswers: ResumeSupplementalAnswers = {
   digitalSkills: "",
 
   // Este campo começa vazio porque a área desejada é uma preferência opcional.
-  preferredArea: "",
+  areasInteresse: [],
 
-  // Este campo começa vazio porque bairro ou cidade precisam vir do jovem.
-  location: "",
+  // Este campo começa vazio e só recebe texto quando o jovem escolhe Outro em áreas.
+  areaOutro: "",
+
+  // Este campo comeca no Espirito Santo porque o projeto e do CRJ no ES.
+  estado: "Espírito Santo",
+
+  // Este campo comeca vazio ate o jovem escolher a cidade.
+  cidade: "",
+
+  // Este campo comeca vazio e so e usado quando a cidade escolhida for Outro.
+  cidadeOutro: "",
+
+  // Este campo comeca vazio porque o bairro deve vir do jovem.
+  bairro: "",
 
   // Este campo começa vazio porque telefone e e-mail só entram se forem informados.
   contact: "",
@@ -358,9 +370,9 @@ export default function Home() {
   }
 
   // Esta função atualiza uma resposta opcional das perguntas inteligentes.
-  function handleSupplementalAnswerChange(
-    field: keyof ResumeSupplementalAnswers,
-    nextValue: string,
+  function handleSupplementalAnswerChange<Field extends keyof ResumeSupplementalAnswers>(
+    field: Field,
+    nextValue: ResumeSupplementalAnswers[Field],
   ) {
     // Esta linha altera apenas a pergunta editada e preserva as outras respostas.
     setSupplementalAnswers((currentAnswers) => ({

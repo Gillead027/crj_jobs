@@ -86,27 +86,6 @@ Nunca use prefixos explicativos como "Objetivo informado", "Experiências citada
 Entregue apenas o conteúdo profissional final em cada campo.
 `.trim();
 
-// Esta lista traduz as chaves internas das perguntas complementares para textos claros no prompt.
-const supplementalAnswerLabels: Record<keyof ResumeSupplementalAnswers, string> = {
-  // Este rótulo identifica projetos sociais, oficinas ou cursos citados depois do relato.
-  socialProject: "Projeto social, oficina ou curso",
-
-  // Este rótulo identifica trabalhos informais e ajudas em família, escola, igreja ou comércio.
-  informalWork: "Ajuda ou trabalho informal",
-
-  // Este rótulo identifica ferramentas digitais informadas pelo jovem.
-  digitalSkills: "Habilidades digitais",
-
-  // Este rótulo identifica a área de preferência profissional.
-  preferredArea: "Área de preferência",
-
-  // Este rótulo identifica bairro, cidade ou região informada.
-  location: "Bairro ou cidade",
-
-  // Este rótulo identifica telefone ou e-mail que deve entrar no currículo.
-  contact: "Telefone ou e-mail",
-};
-
 // Este tipo descreve a parte de texto que o Gemini devolve dentro de cada candidato.
 type GeminiTextPart = {
   // Este campo contém o texto gerado pelo modelo.
@@ -211,29 +190,63 @@ function buildGeminiUrl(model: string) {
 
 // Esta função monta o texto das respostas complementares para a IA usar como dados informados pelo jovem.
 function buildSupplementalAnswersText(answers: ResumeSupplementalAnswers) {
-  // Esta constante cria uma linha apenas para respostas realmente preenchidas.
-  const answeredQuestions = Object.entries(answers)
-    .map(([field, value]) => {
-      // Esta constante recupera o rótulo humano da pergunta complementar.
-      const label = supplementalAnswerLabels[field as keyof ResumeSupplementalAnswers];
+  // Esta lista acumula apenas informacoes preenchidas pelo jovem.
+  const answeredQuestions: string[] = [];
 
-      // Esta constante limpa o valor antes de colocá-lo no prompt.
-      const cleanValue = value.trim();
+  // Esta funcao adiciona uma linha textual somente quando ha valor real.
+  const addTextAnswer = (label: string, value: string) => {
+    // Esta constante remove espacos extras antes de enviar o dado para a IA.
+    const cleanValue = value.trim();
 
-      // Esta condição ignora perguntas vazias para não sugerir dados inexistentes à IA.
-      if (!cleanValue) {
-        // Este retorno nulo será removido pelo filtro abaixo.
-        return null;
-      }
+    // Esta condicao ignora campos vazios para nao sugerir dados inexistentes.
+    if (!cleanValue) {
+      // Este retorno evita adicionar uma linha vazia ao prompt.
+      return;
+    }
 
-      // Este retorno transforma a resposta em uma linha objetiva para o prompt.
-      return `- ${label}: ${cleanValue}`;
-    })
+    // Esta linha adiciona o dado em formato claro para a IA.
+    answeredQuestions.push(`- ${label}: ${cleanValue}`);
+  };
+
+  // Esta constante transforma os chips selecionados em uma lista organizada para a IA.
+  const selectedAreas = answers.areasInteresse
+    .filter((area) => area !== "Outro")
+    .map((area) => area.trim())
     .filter(Boolean);
 
-  // Esta condição evita criar contexto falso quando nenhuma pergunta foi respondida.
+  // Esta condicao adiciona a area manual quando o chip Outro foi usado.
+  if (answers.areaOutro.trim()) {
+    // Esta linha preserva a area livre como parte do array de areas de interesse.
+    selectedAreas.push(answers.areaOutro.trim());
+  } else if (answers.areasInteresse.includes("Outro")) {
+    // Esta linha informa que Outro foi escolhido mesmo sem texto adicional.
+    selectedAreas.push("Outro");
+  }
+
+  // Esta condicao envia areasInteresse como array de opcoes selecionadas.
+  if (selectedAreas.length > 0) {
+    // Esta linha usa JSON.stringify para deixar claro que e uma lista.
+    answeredQuestions.push(`- areasInteresse: ${JSON.stringify(selectedAreas)}`);
+  }
+
+  // Esta constante escolhe cidade manual quando a opcao Outro foi usada.
+  const selectedCity =
+    answers.cidade === "Outro" ? answers.cidadeOutro.trim() : answers.cidade.trim();
+
+  // Estas linhas enviam estado, cidade e bairro como dados separados para a IA.
+  addTextAnswer("estado", answers.estado);
+  addTextAnswer("cidade", selectedCity);
+  addTextAnswer("bairro", answers.bairro);
+
+  // Estas linhas adicionam os outros dados opcionais em formato simples.
+  addTextAnswer("Projeto social, oficina ou curso", answers.socialProject);
+  addTextAnswer("Ajuda ou trabalho informal", answers.informalWork);
+  addTextAnswer("Habilidades digitais", answers.digitalSkills);
+  addTextAnswer("Telefone ou e-mail", answers.contact);
+
+  // Esta condicao evita criar contexto falso quando nenhuma pergunta foi respondida.
   if (answeredQuestions.length === 0) {
-    // Este retorno deixa claro para a IA que não há dados complementares.
+    // Este retorno deixa claro para a IA que nao ha dados complementares.
     return "Nenhuma resposta complementar informada.";
   }
 

@@ -27,16 +27,6 @@ const maxStoryLength = 6000;
 // Esta constante define o tamanho máximo de cada resposta complementar para manter a chamada objetiva.
 const maxSupplementalAnswerLength = 1200;
 
-// Esta constante lista os campos aceitos nas perguntas inteligentes.
-const supplementalAnswerFields: Array<keyof ResumeSupplementalAnswers> = [
-  "socialProject",
-  "informalWork",
-  "digitalSkills",
-  "preferredArea",
-  "location",
-  "contact",
-];
-
 // Esta constante cria respostas vazias quando o usuário não responde alguma pergunta opcional.
 const emptySupplementalAnswers: ResumeSupplementalAnswers = {
   // Este campo fica vazio se o jovem não citar projeto social, oficina ou curso.
@@ -48,11 +38,23 @@ const emptySupplementalAnswers: ResumeSupplementalAnswers = {
   // Este campo fica vazio se o jovem não citar habilidades digitais.
   digitalSkills: "",
 
-  // Este campo fica vazio se o jovem não escolher área de preferência.
-  preferredArea: "",
+  // Este campo guarda as areas escolhidas nos chips e começa vazio se nada for marcado.
+  areasInteresse: [],
 
-  // Este campo fica vazio se o jovem não informar bairro ou cidade.
-  location: "",
+  // Este campo guarda a area digitada quando o jovem escolhe Outro.
+  areaOutro: "",
+
+  // Este campo comeca no Espirito Santo porque o projeto e do CRJ no ES.
+  estado: "Espírito Santo",
+
+  // Este campo fica vazio se o jovem nao escolher cidade.
+  cidade: "",
+
+  // Este campo fica vazio se o jovem nao preencher cidade manual.
+  cidadeOutro: "",
+
+  // Este campo fica vazio se o jovem nao informar bairro.
+  bairro: "",
 
   // Este campo fica vazio se o jovem não informar telefone ou e-mail.
   contact: "",
@@ -106,6 +108,21 @@ function cleanSupplementalAnswer(value: unknown) {
   return value.replace(/\s+/g, " ").trim().slice(0, maxSupplementalAnswerLength);
 }
 
+// Esta funcao limpa a lista de areas escolhidas antes de enviar para a IA.
+function cleanSupplementalAnswerList(value: unknown) {
+  // Esta condicao garante que apenas arrays sejam aceitos como areasInteresse.
+  if (!Array.isArray(value)) {
+    // Este retorno vazio evita passar dados inesperados para a IA.
+    return [];
+  }
+
+  // Esta linha limpa cada item, remove vazios e limita a quantidade de areas enviadas.
+  return value
+    .map((item) => cleanSupplementalAnswer(item))
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
 // Esta função extrai as perguntas inteligentes no formato que a integração Gemini espera.
 function extractSupplementalAnswersFromBody(
   body: ResumeApiRequestBody,
@@ -122,11 +139,17 @@ function extractSupplementalAnswersFromBody(
     return answers;
   }
 
-  // Este laço copia apenas os campos conhecidos e limpa cada texto antes de chamar a IA.
-  supplementalAnswerFields.forEach((field) => {
-    // Esta linha salva a resposta limpa no campo correspondente.
-    answers[field] = cleanSupplementalAnswer(rawAnswers[field]);
-  });
+  // Estas linhas copiam dados organizados de areas, estado, cidade e bairro para a IA.
+  answers.areasInteresse = cleanSupplementalAnswerList(rawAnswers.areasInteresse);
+  answers.areaOutro = cleanSupplementalAnswer(rawAnswers.areaOutro);
+  answers.estado = cleanSupplementalAnswer(rawAnswers.estado) || emptySupplementalAnswers.estado;
+  answers.cidade = cleanSupplementalAnswer(rawAnswers.cidade);
+  answers.cidadeOutro = cleanSupplementalAnswer(rawAnswers.cidadeOutro);
+  answers.bairro = cleanSupplementalAnswer(rawAnswers.bairro);
+  answers.socialProject = cleanSupplementalAnswer(rawAnswers.socialProject);
+  answers.informalWork = cleanSupplementalAnswer(rawAnswers.informalWork);
+  answers.digitalSkills = cleanSupplementalAnswer(rawAnswers.digitalSkills);
+  answers.contact = cleanSupplementalAnswer(rawAnswers.contact);
 
   // Este retorno entrega respostas opcionais seguras para o prompt.
   return answers;
