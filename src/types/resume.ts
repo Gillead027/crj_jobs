@@ -209,19 +209,56 @@ export type ResumeEditorProps = {
   onSave: (nextResume: ResumeData) => void;
 };
 
-// Este tipo organiza as propriedades que o botão de PDF precisa receber.
-export type DownloadPdfButtonProps = {
-  // Este campo guarda os dados que serão colocados dentro do PDF.
+// Este tipo define os formatos de download que podem disparar feedback local.
+export type ResumeDownloadFormat =
+  // Este formato representa o arquivo PDF pronto para envio ou impressao.
+  | "pdf"
+
+  // Este formato representa o arquivo Word editavel pela equipe.
+  | "docx";
+
+// Este tipo organiza as propriedades comuns dos botoes de download do curriculo.
+export type DownloadResumeButtonProps = {
+  // Este campo guarda os dados que serao colocados dentro do arquivo baixado.
   resume: ResumeData;
 
-  // Este campo informa se o currículo já foi gerado e pode ser baixado.
+  // Este campo informa se o curriculo ja foi gerado e pode ser baixado.
   canDownload: boolean;
 
-  // Este campo informa qual estilo visual deve ser usado no PDF.
+  // Este campo informa qual estilo visual deve orientar o arquivo baixado.
   templateId: ResumeTemplateId;
 
-  // Esta função permite que o botão mostre mensagens na tela principal.
+  // Esta funcao permite que o botao mostre mensagens na tela principal.
   onStatusChange: (nextMessage: string) => void;
+
+  // Esta funcao avisa a pagina quando o arquivo foi baixado para abrir o feedback simples.
+  onDownloaded?: (format: ResumeDownloadFormat) => void;
+};
+
+// Este tipo organiza as propriedades que o botao de PDF precisa receber.
+export type DownloadPdfButtonProps = DownloadResumeButtonProps;
+
+// Este tipo organiza as propriedades que o botao de Word precisa receber.
+export type DownloadDocxButtonProps = DownloadResumeButtonProps;
+
+// Este tipo define as respostas permitidas no feedback simples pos-download.
+export type ResumeDownloadFeedbackAnswer =
+  // Esta resposta indica que o curriculo ficou bom para a pessoa.
+  | "good"
+
+  // Esta resposta indica que o curriculo ainda pode melhorar.
+  | "improve";
+
+// Este tipo organiza as propriedades do feedback mostrado depois do download.
+export type DownloadFeedbackProps = {
+  // Este campo informa se a pergunta deve aparecer na tela.
+  isVisible: boolean;
+
+  // Este campo informa qual foi o formato baixado antes da pergunta aparecer.
+  downloadFormat: ResumeDownloadFormat;
+
+  // Esta funcao entrega a resposta escolhida para a pagina atualizar a mensagem.
+  onFeedbackSaved: (answer: ResumeDownloadFeedbackAnswer) => void;
 };
 
 // Este tipo organiza as propriedades recebidas por cada template visual de currículo.

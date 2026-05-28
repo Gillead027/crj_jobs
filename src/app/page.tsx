@@ -12,6 +12,12 @@ import { useEffect, useState } from "react";
 // Este import traz o botão separado que baixa o currículo em PDF.
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 
+// Este import traz o botao separado que baixa o curriculo em Word editavel.
+import { DownloadDocxButton } from "@/components/DownloadDocxButton";
+
+// Este import traz o feedback simples exibido depois de baixar o curriculo.
+import { DownloadFeedback } from "@/components/DownloadFeedback";
+
 // Este import traz a seção inicial moderna do produto.
 import { HeroSection } from "@/components/HeroSection";
 
@@ -53,6 +59,8 @@ import type {
   ResumeApiErrorResponse,
   ResumeApiSuccessResponse,
   ResumeData,
+  ResumeDownloadFeedbackAnswer,
+  ResumeDownloadFormat,
   ResumeGenerationContext,
   ResumeHistoryItem,
   ResumeSupplementalAnswers,
@@ -297,6 +305,13 @@ export default function Home() {
   const [supplementalAnswers, setSupplementalAnswers] =
     useState<ResumeSupplementalAnswers>(emptySupplementalAnswers);
 
+  // Este estado controla quando a pergunta de feedback deve aparecer depois de baixar.
+  const [shouldShowDownloadFeedback, setShouldShowDownloadFeedback] = useState(false);
+
+  // Este estado guarda o ultimo formato baixado para salvar feedback sem dados pessoais.
+  const [lastDownloadFormat, setLastDownloadFormat] =
+    useState<ResumeDownloadFormat>("pdf");
+
   // Esta constante busca nome e descrição do template selecionado.
   const selectedTemplate = getResumeTemplate(selectedTemplateId);
 
@@ -328,6 +343,9 @@ export default function Home() {
 
     // Esta linha remove o erro antigo depois que o jovem volta a mexer no relato.
     setLoadingErrorMessage("");
+
+    // Esta linha esconde feedback antigo porque o jovem voltou a alterar o conteudo.
+    setShouldShowDownloadFeedback(false);
   }
 
   // Esta função liga ou desliga o modo Primeiro emprego no fluxo de geração.
@@ -534,6 +552,9 @@ export default function Home() {
 
     // Esta linha fecha os campos do currículo porque o usuário voltou para editar o relato.
     setIsEditingResume(false);
+
+    // Esta linha remove a pergunta de feedback quando o usuario volta para ajustar o relato.
+    setShouldShowDownloadFeedback(false);
   }
 
   // Esta função começa um currículo novo do zero.
@@ -562,6 +583,9 @@ export default function Home() {
     // Esta linha desconecta o novo fluxo de qualquer item antigo do histórico.
     setCurrentHistoryItemId(null);
 
+    // Esta linha esconde feedback antigo ao iniciar um curriculo novo.
+    setShouldShowDownloadFeedback(false);
+
     // Estas linhas limpam estados visuais de carregamento e mensagens antigas.
     setLoadingStatus("idle");
     setLoadingProgress(0);
@@ -588,6 +612,7 @@ export default function Home() {
     setLoadingStatus("idle");
     setLoadingProgress(0);
     setLoadingErrorMessage("");
+    setShouldShowDownloadFeedback(false);
     setMessage("Currículo aberto do histórico local deste navegador.");
   }
 
@@ -626,8 +651,35 @@ export default function Home() {
     // Esta linha fecha o editor depois de aplicar os dados editados.
     setIsEditingResume(false);
 
-    // Esta mensagem confirma que o PDF usará as informações atualizadas.
-    setMessage("Alterações salvas. A pré-visualização e o PDF foram atualizados.");
+    // Esta linha esconde feedback antigo porque o curriculo foi alterado depois do download.
+    setShouldShowDownloadFeedback(false);
+
+    // Esta mensagem confirma que PDF e Word usarao as informacoes atualizadas.
+    setMessage("Alterações salvas. A pré-visualização, o PDF e o Word foram atualizados.");
+  }
+
+  // Esta funcao abre o feedback simples depois que PDF ou Word foram baixados.
+  function handleResumeDownloaded(format: ResumeDownloadFormat) {
+    // Esta linha guarda o formato sem salvar dados pessoais do curriculo.
+    setLastDownloadFormat(format);
+
+    // Esta linha mostra a pergunta "Esse currículo ficou bom para você?".
+    setShouldShowDownloadFeedback(true);
+  }
+
+  // Esta funcao trata a resposta do feedback salvo apenas no LocalStorage.
+  function handleDownloadFeedbackSaved(answer: ResumeDownloadFeedbackAnswer) {
+    // Esta linha fecha a pergunta depois que a pessoa responde.
+    setShouldShowDownloadFeedback(false);
+
+    // Esta constante cria uma mensagem curta conforme a resposta escolhida.
+    const feedbackMessage =
+      answer === "good"
+        ? "Obrigado! Sua resposta ficou salva apenas neste navegador."
+        : "Obrigado! O retorno de melhoria ficou salvo apenas neste navegador.";
+
+    // Esta linha mostra confirmacao sem enviar dados pessoais para servidor.
+    setMessage(feedbackMessage);
   }
 
   // Este retorno monta o fundo moderno e controla qual etapa aparece.
@@ -711,12 +763,12 @@ export default function Home() {
 
                   {/* Este texto reforça que o jovem pode voltar para editar. */}
                   <p className="mt-1 break-words text-sm text-slate-600">
-                    Revise o currículo, edite os campos, baixe em PDF ou volte para melhorar o relato.
+                    Revise o currículo, edite os campos, baixe em PDF ou Word, ou volte para melhorar o relato.
                   </p>
                 </div>
 
                 {/* Este bloco agrupa os botões da etapa de pré-visualização. */}
-                <div className="flex w-full max-w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                <div className="flex w-full max-w-full flex-col gap-3 sm:flex-row sm:flex-wrap md:w-auto md:justify-end">
                   {/* Este botão volta para a primeira etapa sem apagar o texto. */}
                   <button
                     type="button"
@@ -763,6 +815,16 @@ export default function Home() {
                     canDownload
                     templateId={selectedTemplateId}
                     onStatusChange={setMessage}
+                    onDownloaded={handleResumeDownloaded}
+                  />
+
+                  {/* Este componente baixa o Word editavel usando os dados revisados. */}
+                  <DownloadDocxButton
+                    resume={resume}
+                    canDownload
+                    templateId={selectedTemplateId}
+                    onStatusChange={setMessage}
+                    onDownloaded={handleResumeDownloaded}
                   />
                 </div>
               </section>
@@ -771,6 +833,13 @@ export default function Home() {
               <p className="min-h-6 break-words text-sm font-medium text-slate-700" aria-live="polite">
                 {message}
               </p>
+
+              {/* Este componente pergunta uma opiniao simples depois do download, salvando so no navegador. */}
+              <DownloadFeedback
+                isVisible={shouldShowDownloadFeedback}
+                downloadFormat={lastDownloadFormat}
+                onFeedbackSaved={handleDownloadFeedbackSaved}
+              />
 
               {/* Esta condição mostra o editor somente quando o usuário pede para ajustar o currículo. */}
               {isEditingResume ? (

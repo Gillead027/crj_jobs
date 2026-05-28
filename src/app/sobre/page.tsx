@@ -44,7 +44,7 @@ const projectPillars = [
 
     // Este texto explica que o jovem pode revisar, editar e baixar o currículo.
     description:
-      "Depois de gerar, cada pessoa pode ajustar as informações, escolher o modelo visual e baixar o PDF.",
+      "Depois de gerar, cada pessoa pode ajustar as informações, escolher o modelo visual e baixar o PDF ou Word.",
 
     // Este ícone simboliza apoio e escolha.
     Icon: Handshake,
@@ -144,7 +144,7 @@ export default function AboutPage() {
             </h2>
             <p className="mt-2 max-w-3xl break-words text-sm leading-7 text-slate-700">
               O sistema ajuda a transformar o relato em uma primeira versão de currículo.
-              Depois, o currículo pode ser revisado, editado e baixado em PDF.
+              Depois, o currículo pode ser revisado, editado e baixado em PDF ou Word.
             </p>
             <Link
               href="/"

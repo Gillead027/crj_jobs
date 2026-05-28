@@ -4,7 +4,7 @@
 import { motion } from "framer-motion";
 
 // Este import traz ícones prontos para deixar a interface mais clara.
-import { FileText, Info, Sparkles } from "lucide-react";
+import { CircleHelp, FileText, Info, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 // Este componente mostra o título, a proposta do sistema e uma prévia visual do resultado.
@@ -40,17 +40,32 @@ export function HeroSection() {
           modelo bonito, profissional e pronto para baixar.
         </p>
 
-        {/* Este link abre a página institucional sem sair do projeto. */}
-        <Link
-          href="/sobre"
-          className="mt-5 inline-flex max-w-full items-center gap-2 rounded-lg border border-teal-200 bg-white/75 px-4 py-2 text-sm font-bold text-teal-800 transition hover:bg-white focus-visible:outline-teal-700"
-        >
-          {/* Este ícone indica que o link leva a informações sobre o projeto. */}
-          <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+        {/* Este bloco agrupa links de orientacao sem tirar foco do formulario principal. */}
+        <div className="mt-5 flex max-w-full flex-col gap-3 sm:flex-row sm:flex-wrap">
+          {/* Este link abre a pagina de passos simples para equipe e jovens. */}
+          <Link
+            href="/como-usar"
+            className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-lg border border-slate-300 bg-slate-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-teal-800 focus-visible:outline-teal-700"
+          >
+            {/* Este icone indica ajuda de uso. */}
+            <CircleHelp className="h-4 w-4 shrink-0" aria-hidden="true" />
 
-          {/* Este texto mantém o acesso à rota /sobre visível no gerador. */}
-          <span className="min-w-0 break-words">Sobre o projeto</span>
-        </Link>
+            {/* Este texto mantem a rota /como-usar visivel no gerador. */}
+            <span className="min-w-0 break-words">Como usar</span>
+          </Link>
+
+          {/* Este link abre a página institucional sem sair do projeto. */}
+          <Link
+            href="/sobre"
+            className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-lg border border-teal-200 bg-white/75 px-4 py-2 text-sm font-bold text-teal-800 transition hover:bg-white focus-visible:outline-teal-700"
+          >
+            {/* Este ícone indica que o link leva a informações sobre o projeto. */}
+            <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+
+            {/* Este texto mantém o acesso à rota /sobre visível no gerador. */}
+            <span className="min-w-0 break-words">Sobre o projeto</span>
+          </Link>
+        </div>
       </motion.div>
 
       {/* Este bloco animado mostra uma miniatura visual do currículo final. */}
